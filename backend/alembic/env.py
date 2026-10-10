@@ -15,7 +15,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # 迁移使用同步 sqlite 驱动
-config.set_main_option("sqlalchemy.url", settings.database_url.replace("+aiosqlite", ""))
+config.set_main_option("sqlalchemy.url", settings.database.url.replace("+aiosqlite", ""))
 
 target_metadata = Base.metadata
 

@@ -10,7 +10,8 @@ from openpyxl.utils import get_column_letter
 
 from app.core.config import settings
 
-HEADERS = ["序号", "单位", "职务", "姓名", "电话", "邮箱", "提交时间"]
+HEADERS = ["序号", "报告", "单位", "职务", "姓名", "电话", "邮箱", "提交时间"]
+COLUMN_WIDTHS = [8, 28, 28, 20, 14, 16, 30, 20]
 
 
 def build_submissions_xlsx(submissions: list, sheet_title: str = "报告信息") -> bytes:
@@ -26,7 +27,7 @@ def build_submissions_xlsx(submissions: list, sheet_title: str = "报告信息")
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    tz = ZoneInfo(settings.timezone)
+    tz = ZoneInfo(settings.app.timezone)
     for index, item in enumerate(submissions, start=1):
         submitted_at = item.submitted_at
         if submitted_at and submitted_at.tzinfo is None:
@@ -39,6 +40,7 @@ def build_submissions_xlsx(submissions: list, sheet_title: str = "报告信息")
         worksheet.append(
             [
                 index,
+                getattr(item, "report_title", "") or "",
                 item.organization,
                 item.position,
                 item.name,
@@ -47,12 +49,11 @@ def build_submissions_xlsx(submissions: list, sheet_title: str = "报告信息")
                 submitted_text,
             ]
         )
-        worksheet.cell(row=index + 1, column=5).number_format = "@"  # 手机号按文本
-        worksheet.cell(row=index + 1, column=6).number_format = "@"
+        worksheet.cell(row=index + 1, column=6).number_format = "@"  # 手机号按文本
+        worksheet.cell(row=index + 1, column=7).number_format = "@"
 
     worksheet.freeze_panes = "A2"
-    widths = [8, 28, 20, 14, 16, 30, 20]
-    for column, width in enumerate(widths, start=1):
+    for column, width in enumerate(COLUMN_WIDTHS, start=1):
         worksheet.column_dimensions[get_column_letter(column)].width = width
 
     buffer = io.BytesIO()
@@ -61,7 +62,6 @@ def build_submissions_xlsx(submissions: list, sheet_title: str = "报告信息")
 
 
 def default_attachment_name(now: datetime | None = None) -> str:
-    tz = ZoneInfo(settings.timezone)
+    tz = ZoneInfo(settings.app.timezone)
     moment = now.astimezone(tz) if now else datetime.now(tz)
     return f"报告收集_{moment.strftime('%Y%m%d_%H%M%S')}.xlsx"
-

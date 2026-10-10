@@ -9,7 +9,9 @@ venv/
 .ruff_cache/
 .mypy_cache/
 
-# 环境变量与密钥
+# 本地配置与密钥（使用 config.yaml，不使用 .env）
+config.yaml
+config.local.yaml
 .env
 .env.*
 !.env.example
@@ -36,5 +38,6 @@ frontend/dist/
 Thumbs.db
 
 # 日志与临时文件
+logs/
 *.log
 tmp/

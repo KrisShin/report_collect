@@ -17,7 +17,7 @@ class FeishuError(RuntimeError):
 
 class FeishuClient:
     def __init__(self, base_url: str | None = None) -> None:
-        self.base_url = (base_url or settings.feishu_base_url).rstrip("/")
+        self.base_url = (base_url or settings.feishu.base_url).rstrip("/")
         self._token: str | None = None
         self._token_expire_at: float = 0
 
@@ -26,7 +26,7 @@ class FeishuClient:
         if self._token and now < self._token_expire_at:
             return self._token
 
-        if not settings.feishu_app_id or not settings.feishu_app_secret:
+        if not settings.feishu.app_id or not settings.feishu.app_secret:
             raise FeishuError("飞书 AppID/AppSecret 未配置")
 
         url = f"{self.base_url}/auth/v3/tenant_access_token/internal"
@@ -34,8 +34,8 @@ class FeishuClient:
             resp = await client.post(
                 url,
                 json={
-                    "app_id": settings.feishu_app_id,
-                    "app_secret": settings.feishu_app_secret,
+                    "app_id": settings.feishu.app_id,
+                    "app_secret": settings.feishu.app_secret,
                 },
             )
             resp.raise_for_status()
@@ -50,7 +50,7 @@ class FeishuClient:
         return self._token
 
     async def send_text(self, text: str, chat_id: str | None = None) -> dict:
-        receive_id = chat_id or settings.feishu_chat_id
+        receive_id = chat_id or settings.feishu.chat_id
         if not receive_id:
             raise FeishuError("飞书群 chat_id 未配置")
 

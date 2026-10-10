@@ -1,0 +1,65 @@
+app:
+  name: 报告收集系统
+  env: development
+  debug: false
+  timezone: Asia/Shanghai
+  secret_key: please-generate-a-random-48-char-secret
+  access_token_expire_minutes: 720
+  cookie_name: rc_admin_token
+  cors_origins:
+  - http://localhost:5173
+  - http://127.0.0.1:5173
+  public_base_url: https://your-domain.example.com
+  client_path: /m
+  admin_path: /admin
+database:
+  url: sqlite+aiosqlite:///./data/app.db
+wechat:
+  require_browser: false
+  enforce_in_dev: false
+feishu:
+  base_url: https://open.feishu.cn/open-apis
+  app_id: ''
+  app_secret: ''
+  chat_id: ''
+mail:
+  host: smtp.exmail.qq.com
+  port: 465
+  use_ssl: true
+  user: ''
+  password: ''
+  from_name: 清华EIRI 报告收集
+  recipients:
+  - krisshin@yeah.net
+  intercept_all: true
+admin:
+  initial_username: admin
+  initial_password: ''
+ai:
+  enabled: true
+  base_url: http://60.205.114.252:18999/v1
+  api_key: ''
+  model: deepseek-v4-flash
+  timeout_seconds: 60
+  max_tokens: 1200
+diagnostics:
+  log_client_requests: true
+  log_dir: logs
+  log_body: true
+redis:
+  enabled: false
+  url: redis://127.0.0.1:6379/0
+  key_prefix: reportc
+  socket_timeout: 2.0
+  job_queue_key: jobs
+security:
+  login_max_failures: 5
+  login_lock_seconds: 900
+  submit_ip_per_minute: 10
+  submit_phone_per_hour: 3
+  diagnostics_per_minute: 30
+  enforce_origin_check: true
+  enable_security_headers: true
+  unique_phone_per_report: true
+  unique_email_per_report: true
+  unique_ip_per_report: true

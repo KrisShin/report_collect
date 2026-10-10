@@ -1,15 +1,24 @@
 """管理端认证接口。"""
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
 from app.core.config import settings
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    verify_password,
+)
 from app.db.session import get_db
 from app.models.admin_user import AdminUser
 from app.schemas.auth import AdminMe, ChangePasswordRequest, LoginRequest
+from app.services import login_guard
+from app.services.token_store import revoke
 
 router = APIRouter(prefix="/api/admin/auth", tags=["admin-auth"])
 
@@ -21,22 +30,40 @@ async def login(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> AdminUser:
+    ip = request.client.host if request.client else "unknown"
+    identity = f"{ip}:{payload.username}"
+
+    locked_seconds = await login_guard.is_locked(identity)
+    if locked_seconds:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"登录失败次数过多，请 {max(locked_seconds // 60, 1)} 分钟后再试",
+        )
+
     admin = await db.scalar(select(AdminUser).where(AdminUser.username == payload.username))
     if (
         not admin
         or not admin.is_active
         or not verify_password(payload.password, admin.password_hash)
     ):
+        remaining_lock = await login_guard.record_failure(identity)
+        if remaining_lock:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"登录失败次数过多，请 {max(remaining_lock // 60, 1)} 分钟后再试",
+            )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="账号或密码错误")
+
+    await login_guard.clear(identity)
 
     token = create_access_token(subject=str(admin.id))
     response.set_cookie(
-        key=settings.cookie_name,
+        key=settings.app.cookie_name,
         value=token,
         httponly=True,
         samesite="lax",
-        secure=settings.app_env == "production",
-        max_age=settings.access_token_expire_minutes * 60,
+        secure=settings.app.env == "production",
+        max_age=settings.app.access_token_expire_minutes * 60,
         path="/",
     )
 
@@ -50,8 +77,17 @@ async def login(
 
 
 @router.post("/logout")
-async def logout(response: Response) -> dict:
-    response.delete_cookie(settings.cookie_name, path="/")
+async def logout(request: Request, response: Response) -> dict:
+    token = request.cookies.get(settings.app.cookie_name)
+    if token:
+        try:
+            payload = decode_access_token(token)
+            exp = int(payload.get("exp") or 0)
+            ttl = max(exp - int(datetime.now(UTC).timestamp()), 1)
+            await revoke(str(payload.get("jti") or ""), ttl)
+        except Exception:  # noqa: BLE001
+            pass
+    response.delete_cookie(settings.app.cookie_name, path="/")
     return {"ok": True}
 
 

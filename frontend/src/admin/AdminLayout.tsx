@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Button, Form, Input, Layout, Modal, Space, Spin, Typography, message } from 'antd'
+import { Button, Form, Input, Layout, Modal, Space, Spin, Tooltip, message } from 'antd'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { api, errorMessage } from '../shared/api'
 import type { AdminMe } from '../shared/types'
 
-const { Header, Content } = Layout
+const { Content } = Layout
 
 export default function AdminLayout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const [pwdOpen, setPwdOpen] = useState(false)
   const [pwdForm] = Form.useForm()
@@ -50,24 +51,50 @@ export default function AdminLayout() {
     )
   }
 
+  const onSubmissions = location.pathname === '/admin' || location.pathname === '/admin/'
+  const onReports = location.pathname.startsWith('/admin/reports')
+
   return (
     <Layout className="admin-shell">
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingInline: 16 }}>
-        <Typography.Text style={{ color: '#fff', fontSize: 16, fontWeight: 600 }}>
-          报告收集 · 管理端
-        </Typography.Text>
-        <Space>
-          <Typography.Text style={{ color: 'rgba(255,255,255,.75)' }}>
+      <div className="admin-header">
+        <div className="admin-brand">
+          <div className="admin-brand-mark">E</div>
+          <div>
+            <div className="admin-brand-title">报告收集系统</div>
+            <div className="admin-brand-sub">TSINGHUA EIRI</div>
+          </div>
+        </div>
+        <Space size={8} wrap>
+          <span className="admin-user">
             {meQuery.data?.display_name ?? meQuery.data?.username}
-          </Typography.Text>
-          <Button size="small" onClick={() => setPwdOpen(true)}>
-            修改密码
-          </Button>
+          </span>
+          <Tooltip title="修改登录密码">
+            <Button size="small" ghost onClick={() => setPwdOpen(true)}>
+              修改密码
+            </Button>
+          </Tooltip>
           <Button size="small" danger onClick={logout}>
             退出
           </Button>
         </Space>
-      </Header>
+      </div>
+
+      <div className="admin-nav">
+        <Button
+          className="admin-nav-pill"
+          type={onSubmissions ? 'primary' : 'default'}
+          onClick={() => navigate('/admin')}
+        >
+          提交记录
+        </Button>
+        <Button
+          className="admin-nav-pill"
+          type={onReports ? 'primary' : 'default'}
+          onClick={() => navigate('/admin/reports')}
+        >
+          报告管理
+        </Button>
+      </div>
 
       <Content className="admin-content">
         <Outlet />
@@ -75,7 +102,11 @@ export default function AdminLayout() {
 
       <Modal title="修改密码" open={pwdOpen} onOk={changePassword} onCancel={() => setPwdOpen(false)}>
         <Form form={pwdForm} layout="vertical">
-          <Form.Item name="old_password" label="原密码" rules={[{ required: true, message: '请输入原密码' }]}>
+          <Form.Item
+            name="old_password"
+            label="原密码"
+            rules={[{ required: true, message: '请输入原密码' }]}
+          >
             <Input.Password />
           </Form.Item>
           <Form.Item

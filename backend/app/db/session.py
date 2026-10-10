@@ -8,12 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.config import settings
 
 engine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
+    settings.database.url,
+    echo=settings.app.debug,
     pool_pre_ping=True,
 )
 
-if settings.database_url.startswith("sqlite"):
+if settings.database.url.startswith("sqlite"):
 
     @event.listens_for(engine.sync_engine, "connect")
     def _set_sqlite_pragma(dbapi_connection, _connection_record) -> None:  # noqa: ANN001

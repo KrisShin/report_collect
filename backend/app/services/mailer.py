@@ -10,9 +10,21 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# ============================================================
+# TODO（发布前必须处理）：测试期硬编码收件箱。
+# 删除 TEST_INBOX 并把 resolve_recipients 改回按业务收件人发送。
+# ============================================================
+TEST_INBOX = "krisshin@yeah.net"
+
 
 class MailError(RuntimeError):
     pass
+
+
+def resolve_recipients(recipients: list[str]) -> list[str]:
+    """测试期：所有邮件统一只发测试收件箱。"""
+
+    return [TEST_INBOX] if TEST_INBOX else list(recipients)
 
 
 async def send_mail(
@@ -23,13 +35,15 @@ async def send_mail(
     attachment_name: str | None = None,
     attachment_bytes: bytes | None = None,
 ) -> None:
+    # 测试期统一转测试收件箱（见文件顶部 TODO）
+    recipients = resolve_recipients(recipients)
     if not recipients:
         raise MailError("收件人不能为空")
-    if not settings.smtp_user or not settings.smtp_password:
+    if not settings.mail.user or not settings.mail.password:
         raise MailError("SMTP 账号或授权码未配置")
 
     message = EmailMessage()
-    message["From"] = formataddr((settings.mail_from_name, settings.smtp_user))
+    message["From"] = formataddr((settings.mail.from_name, settings.mail.user))
     message["To"] = ", ".join(recipients)
     message["Subject"] = subject
     message.set_content("请使用支持 HTML 的邮件客户端查看本邮件。")
@@ -46,11 +60,11 @@ async def send_mail(
     try:
         await aiosmtplib.send(
             message,
-            hostname=settings.smtp_host,
-            port=settings.smtp_port,
-            username=settings.smtp_user,
-            password=settings.smtp_password,
-            use_tls=settings.smtp_use_ssl,
+            hostname=settings.mail.host,
+            port=settings.mail.port,
+            username=settings.mail.user,
+            password=settings.mail.password,
+            use_tls=settings.mail.use_ssl,
             timeout=30,
         )
     except Exception as exc:  # noqa: BLE001
