@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.python-version
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# 环境变量与密钥
+.env
+.env.*
+!.env.example
+
+# uv 残留文件（本项目使用 conda 环境）
+uv.lock
+
+# 数据库与备份
+*.db
+*.db-shm
+*.db-wal
+data/
+backups/
+
+# 前端
+node_modules/
+frontend/dist/
+*.local
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 日志与临时文件
+*.log
+tmp/

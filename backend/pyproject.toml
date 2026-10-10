@@ -1,0 +1,17 @@
+# 依赖统一由 requirements.txt / requirements-dev.txt 管理（使用 conda 环境 reportc）。
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["B008", "UP046"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning"]
+
