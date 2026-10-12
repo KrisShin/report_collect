@@ -20,7 +20,6 @@ from app.models.submission import Submission
 from app.services.ai import check_submission
 from app.services.attachments import collect_attachments
 from app.services.email_template import render_report_email
-from app.services.exporter import build_submissions_xlsx, default_attachment_name
 from app.services.feishu import feishu_client
 from app.services.mailer import MailError, OutgoingMail, send_mails
 
@@ -185,11 +184,14 @@ async def deliver_report_mail(log_id: int, submission_ids: list[int]) -> None:
         )
         titles = await _report_titles(db)
 
-        attachment_name = default_attachment_name()
         mails: list[OutgoingMail] = []
+        attached_names: list[str] = []
         for row in rows:
             row.report_title = titles.get(row.report_id)
+            # 附件只使用附件目录里的静态文件（不再自动生成 xlsx）
             static_files = collect_attachments(row.report_id)
+            if static_files:
+                attached_names = [name for name, _ in static_files]
             mails.append(
                 OutgoingMail(
                     recipients=[row.email],
@@ -198,8 +200,6 @@ async def deliver_report_mail(log_id: int, submission_ids: list[int]) -> None:
                         records=[row],
                         extra_attachments=[name for name, _ in static_files],
                     ),
-                    attachment_name=attachment_name,
-                    attachment_bytes=build_submissions_xlsx([row]),
                     extra_attachments=static_files,
                 )
             )
@@ -238,7 +238,7 @@ async def deliver_report_mail(log_id: int, submission_ids: list[int]) -> None:
 
         failed = len(rows) - success
         log.status = "sent" if failed == 0 else ("failed" if success == 0 else "partial")
-        log.attachment_name = attachment_name
+        log.attachment_name = ";".join(attached_names) or None
         log.failed_submission_ids = json.dumps(failed_ids)
         log.sent_at = now if success else None
         log.error = None if failed == 0 else f"{failed} 封发送失败"

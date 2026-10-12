@@ -10,7 +10,7 @@ import asyncio
 import logging
 import mimetypes
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from email.message import EmailMessage
 from email.utils import formataddr
 
@@ -87,8 +87,8 @@ async def send_mails(
     if not settings.mail.user or not settings.mail.password:
         raise MailError("SMTP 账号或授权码未配置")
 
-    # >>>>> 唯一门控：注释掉下面这一行，就会真实发给调用方传入的收件人 <<<<<
-    mails = [replace(mail, recipients=[TEST_INBOX]) for mail in mails]
+    # >>>>> 唯一门控：需要测试拦截时取消下一行注释（改发 TEST_INBOX）<<<<<
+    # mails = [replace(mail, recipients=[TEST_INBOX]) for mail in mails]
 
     errors: list[str | None] = []
     try:

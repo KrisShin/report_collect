@@ -6,6 +6,7 @@ class _FakeSMTP:
     """模拟 SMTP：记录每次发送，第二次故意失败。"""
 
     instances = 0
+    sent_to: list[str] = []
 
     def __init__(self, **_kwargs) -> None:
         _FakeSMTP.instances += 1
@@ -22,6 +23,7 @@ class _FakeSMTP:
 
     async def send_message(self, message) -> None:  # noqa: ANN001
         self.sent.append(message["To"])
+        type(self).sent_to.append(message["To"])
         if len(self.sent) == 2:
             raise RuntimeError("boom")
 
@@ -33,6 +35,7 @@ async def test_send_mails_gate_and_failure_isolation(monkeypatch):
     monkeypatch.setattr(settings.mail, "send_interval_seconds", 0)
 
     _FakeSMTP.instances = 0
+    _FakeSMTP.sent_to = []
     mails = [
         OutgoingMail([f"user{i}@example.com"], "主题", "<p>hi</p>") for i in range(1, 4)
     ]
@@ -42,6 +45,12 @@ async def test_send_mails_gate_and_failure_isolation(monkeypatch):
     assert errors == [None, "boom", None]
     # 整个批次只建立一条 SMTP 连接
     assert _FakeSMTP.instances == 1
+    # 测试门控已取消：按调用方传入的真实收件人发送
+    assert _FakeSMTP.sent_to == [
+        "user1@example.com",
+        "user2@example.com",
+        "user3@example.com",
+    ]
 
 async def test_send_mails_progress_callback(monkeypatch):
     monkeypatch.setattr("app.services.mailer.aiosmtplib.SMTP", _FakeSMTP)
