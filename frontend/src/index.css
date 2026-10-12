@@ -248,6 +248,12 @@ body {
   text-align: left;
 }
 
+.success-note-warn {
+  background-color: #fdf6e8;
+  border-color: #f0dfb8;
+  color: #7a5c22;
+}
+
 /* 提示页 */
 .notice-page {
   min-height: 100vh;

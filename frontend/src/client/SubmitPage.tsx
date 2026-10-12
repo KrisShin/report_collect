@@ -202,7 +202,11 @@ function SubmitForm({ reportId }: { reportId: string }) {
         >
           提交信息
         </Button>
-        <div className="client-footer-tip">信息仅用于本次报告收集，请确保填写真实有效</div>
+        <div className="client-footer-tip">
+          信息仅用于本次报告收集，请确保填写真实有效
+          <br />
+          审核结果将通过邮件发送，请留意收件箱与垃圾邮件文件夹
+        </div>
       </div>
     </div>
   )

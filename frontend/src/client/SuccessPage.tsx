@@ -20,6 +20,13 @@ export default function SuccessPage() {
           <br />
           请留意查收邮件。
         </div>
+        <div className="success-note success-note-warn">
+          <strong>温馨提示：</strong>邮件可能被误判为垃圾邮件。
+          如果在收件箱没有看到，请检查
+          <strong>「垃圾邮件 / 广告邮件」</strong>文件夹，
+          并将发件人加入白名单。
+        </div>
+
         <div className="success-note">
           本页面无需其他操作，可直接关闭。
           <br />
