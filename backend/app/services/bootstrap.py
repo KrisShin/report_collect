@@ -3,6 +3,7 @@
 import logging
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -28,5 +29,10 @@ async def ensure_initial_admin(session: AsyncSession) -> None:
         must_change_password=True,
     )
     session.add(admin)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        # 多 worker 同时启动时的并发创建，忽略即可
+        await session.rollback()
+        return
     logger.info("已创建初始管理员账号 username=%s", settings.admin.initial_username)

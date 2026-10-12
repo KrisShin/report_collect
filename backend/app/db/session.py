@@ -1,5 +1,6 @@
 """异步数据库引擎与会话（SQLite）。"""
 
+import contextlib
 from collections.abc import AsyncGenerator
 
 from sqlalchemy import event
@@ -18,7 +19,9 @@ if settings.database.url.startswith("sqlite"):
     @event.listens_for(engine.sync_engine, "connect")
     def _set_sqlite_pragma(dbapi_connection, _connection_record) -> None:  # noqa: ANN001
         cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
+        # WAL 只需设置一次；多进程同时启动时可能短暂拿不到锁，失败不影响后续使用
+        with contextlib.suppress(Exception):
+            cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA busy_timeout=5000")
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()

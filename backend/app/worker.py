@@ -8,6 +8,8 @@ import asyncio
 import json
 import logging
 
+import redis.asyncio as aioredis
+
 from app.core import redis as redis_module
 from app.core.config import settings
 from app.core.logging import setup_logging
@@ -50,11 +52,14 @@ async def main() -> None:
 
     while True:
         try:
-            item = await client.brpop(queue_key, timeout=5)
+            # 阻塞时间必须小于 Redis socket_timeout（配置为 2s），否则会误报超时
+            item = await client.brpop(queue_key, timeout=1)
             if item is None:
                 continue
             _, raw = item
             await handle_message(raw)
+        except (TimeoutError, aioredis.exceptions.TimeoutError):
+            continue
         except asyncio.CancelledError:  # pragma: no cover
             break
         except Exception:  # noqa: BLE001
