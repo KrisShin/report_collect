@@ -19,6 +19,9 @@ config.local.yaml
 # uv 残留文件（本项目使用 conda 环境）
 uv.lock
 
+# 邮件静态附件（服务器上直接上传）
+mail_attachments/
+
 # 数据库与备份
 *.db
 *.db-shm

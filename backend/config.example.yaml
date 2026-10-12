@@ -22,6 +22,8 @@ feishu:
   app_id: ''
   app_secret: ''
   chat_id: ''
+  verification_token: ''
+  encrypt_key: ''
 mail:
   host: smtp.exmail.qq.com
   port: 465
@@ -29,9 +31,10 @@ mail:
   user: ''
   password: ''
   from_name: 清华EIRI 报告收集
-  recipients:
-  - krisshin@yeah.net
-  intercept_all: true
+  send_interval_seconds: 3.0
+  retry_delay_seconds: 300
+  attachment_dir: mail_attachments
+  max_attachment_mb: 20
 admin:
   initial_username: admin
   initial_password: ''

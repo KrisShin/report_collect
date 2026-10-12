@@ -16,6 +16,7 @@ from app.api import (
     routes_admin_reports,
     routes_auth,
     routes_client,
+    routes_feishu,
     routes_health,
 )
 from app.core.config import BACKEND_DIR, settings
@@ -148,3 +149,4 @@ app.include_router(routes_auth.router)
 app.include_router(routes_client.router)
 app.include_router(routes_admin.router)
 app.include_router(routes_admin_reports.router)
+app.include_router(routes_feishu.router)

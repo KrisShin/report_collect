@@ -19,6 +19,7 @@ def render_report_email(
     *,
     records: list,
     generated_at: datetime | None = None,
+    extra_attachments: list[str] | None = None,
 ) -> str:
     tz = ZoneInfo(settings.app.timezone)
     moment = (generated_at or datetime.now(tz)).astimezone(tz)
@@ -34,6 +35,7 @@ def render_report_email(
         generated_at=moment.strftime("%Y-%m-%d %H:%M"),
         record_count=len(records),
         report_titles=report_titles,
+        extra_attachments=extra_attachments or [],
         records=[
             {
                 "index": index + 1,

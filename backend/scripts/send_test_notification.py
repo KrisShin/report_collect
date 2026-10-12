@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from app.core.config import settings
 from app.services.exporter import build_submissions_xlsx, default_attachment_name
 from app.services.feishu import feishu_client
-from app.services.mailer import resolve_recipients, send_mail
+from app.services.mailer import TEST_INBOX, send_mail
 
 
 async def send_feishu_test() -> None:
@@ -49,10 +49,10 @@ async def send_mail_test(recipient: str) -> None:
         attachment_name=attachment_name,
         attachment_bytes=attachment,
     )
-    effective = resolve_recipients([recipient])
+    actual = TEST_INBOX or recipient
     print(
-        f"[OK] 测试邮件已发送，实际收件人 {effective}，"
-        f"请求收件人 {recipient}，附件 {attachment_name}"
+        f"[OK] 测试邮件已发送，请求收件人 {recipient}，"
+        f"实际收件人 {actual}，附件 {attachment_name}"
     )
 
 

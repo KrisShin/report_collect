@@ -11,6 +11,11 @@
 # 说明：只匹配本项目的 gunicorn（app.main:app）与 worker（-m app.worker），
 #       不会影响服务器上其他应用。
 # =============================================================================
+# 兼容 `sh restart.sh` 的调用方式：Ubuntu 的 sh 是 dash，这里自动切回 bash
+if [ -z "${BASH_VERSION:-}" ]; then
+  exec bash "$0" "$@"
+fi
+
 set -uo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

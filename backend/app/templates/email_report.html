@@ -120,6 +120,9 @@
                   <tr>
                     <td style="padding:14px 16px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:13px;line-height:22px;color:#6b5a35;">
                       <strong>附件：</strong>报告收集_*.xlsx（完整记录，含单位、职务、姓名、电话、邮箱、提交时间）
+                      {% if extra_attachments %}
+                      <br /><strong>其他附件：</strong>{{ extra_attachments | join('、') }}
+                      {% endif %}
                     </td>
                   </tr>
                 </table>
@@ -130,7 +133,7 @@
             <tr>
               <td style="padding:28px 40px 34px 40px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:13px;line-height:24px;color:#5a6b7c;">
                 <p style="margin:0;">【占位落款，后续修改】</p>
-                <p style="margin:0;font-weight:600;color:#0f2b46;">清华大学能源互联网创新研究院</p>
+                <p style="margin:0;font-weight:600;color:#0f2b46;">清华四川能源互联网研究院-电动交通与车网互动研究咨询团队</p>
               </td>
             </tr>
 

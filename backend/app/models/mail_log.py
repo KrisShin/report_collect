@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -17,6 +17,10 @@ class MailLog(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     submission_ids: Mapped[str] = mapped_column(Text, default="[]")
+    # 本轮发送失败的记录 id（JSON 数组），用于"一键重试失败"
+    failed_submission_ids: Mapped[str] = mapped_column(Text, default="[]")
+    # 重试来源：本记录是哪一次 mail_log 的重试
+    retry_of: Mapped[int | None] = mapped_column(Integer, nullable=True)
     recipient: Mapped[str] = mapped_column(Text)
     subject: Mapped[str] = mapped_column(String(255))
     attachment_name: Mapped[str | None] = mapped_column(String(255))

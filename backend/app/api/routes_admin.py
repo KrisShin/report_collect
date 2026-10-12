@@ -29,7 +29,6 @@ from app.schemas.submission import ReviewRequest, SubmissionRead
 from app.services.audit import write_audit
 from app.services.exporter import build_submissions_xlsx, default_attachment_name
 from app.services.jobs import enqueue
-from app.services.mailer import resolve_recipients
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +215,8 @@ async def send_submissions_mail(
     for row in rows:
         row.report_title = titles.get(row.report_id)
 
-    recipients = resolve_recipients(sorted({row.email for row in rows}))
+    # 收件人 = 勾选的提交人本人（业务决定，这里不做任何拦截）
+    recipients = sorted({row.email for row in rows})
     submission_ids = [row.id for row in rows]
 
     log = MailLog(

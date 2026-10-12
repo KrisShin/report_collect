@@ -44,6 +44,9 @@ class FeishuConfig(BaseModel):
     app_id: str = ""
     app_secret: str = ""
     chat_id: str = ""
+    # 卡片回调安全：与飞书开放平台"卡片请求地址"页面上的一致
+    verification_token: str = ""
+    encrypt_key: str = ""
 
 
 class MailConfig(BaseModel):
@@ -53,10 +56,14 @@ class MailConfig(BaseModel):
     user: str = ""
     password: str = ""
     from_name: str = "清华EIRI 报告收集"
-    # 一键发送邮件的收件人；为空时回退为提交人的邮箱
-    recipients: list[str] = Field(default_factory=list)
-    # 测试拦截：为 True 时所有邮件强制只发给 recipients，忽略真实收件人
-    intercept_all: bool = False
+    # 批量发信节流：每封之间间隔秒数，降低触发邮箱服务商风控的概率
+    send_interval_seconds: float = 3.0
+    # "一键重试失败"的等待时间：先冷却再重发，默认 5 分钟
+    retry_delay_seconds: int = 300
+    # 静态附件目录：放在这里的文件会自动附加到每封邮件（可再按报告 id 建子目录）
+    attachment_dir: str = "mail_attachments"
+    # 单个静态附件大小上限（MB），超过则跳过并记日志
+    max_attachment_mb: int = 20
 
 
 class AiConfig(BaseModel):

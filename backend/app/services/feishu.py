@@ -50,6 +50,14 @@ class FeishuClient:
         return self._token
 
     async def send_text(self, text: str, chat_id: str | None = None) -> dict:
+        return await self._send({"text": text}, "text", chat_id)
+
+    async def send_card(self, card: dict, chat_id: str | None = None) -> dict:
+        """发送交互卡片（支持按钮）。"""
+
+        return await self._send(card, "interactive", chat_id)
+
+    async def _send(self, content: dict, msg_type: str, chat_id: str | None = None) -> dict:
         receive_id = chat_id or settings.feishu.chat_id
         if not receive_id:
             raise FeishuError("飞书群 chat_id 未配置")
@@ -58,8 +66,8 @@ class FeishuClient:
         url = f"{self.base_url}/im/v1/messages?receive_id_type=chat_id"
         payload = {
             "receive_id": receive_id,
-            "msg_type": "text",
-            "content": json.dumps({"text": text}, ensure_ascii=False),
+            "msg_type": msg_type,
+            "content": json.dumps(content, ensure_ascii=False),
         }
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
@@ -76,7 +84,7 @@ class FeishuClient:
         if data.get("code") != 0:
             raise FeishuError(f"发送飞书消息失败: {data}")
 
-        logger.info("飞书提醒已发送 chat_id=%s", receive_id)
+        logger.info("飞书消息已发送 type=%s chat_id=%s", msg_type, receive_id)
         return data
 
 
