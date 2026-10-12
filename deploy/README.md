@@ -66,3 +66,32 @@ server {
 - [ ] 修改初始管理员密码
 - [ ] 全站 HTTPS；SQLite 文件每日备份
 - [ ] `diagnostics.log_client_requests: false` 或保留但确认已脱敏
+
+## 5. 前端发布（重要）
+
+服务器没有 Node.js，前端在本地构建后上传：
+
+```powershell
+# 本地
+cd frontend
+npm run build
+scp -i <key> -r dist/* ecs-user@<server>:/home/ecs-user/Projects/report_collect/frontend/dist/
+```
+
+上传后**必须修正权限**：Caddy 以 `caddy` 用户运行，若 `dist/assets`
+目录权限是 700，Caddy 读不到 JS/CSS，`try_files` 会回退返回 index.html，
+浏览器拿到的是 HTML 而不是脚本 → **页面白屏**。
+
+```bash
+chmod -R u=rwX,go=rX /home/ecs-user/Projects/report_collect/frontend/dist
+```
+
+> 项目根目录的 `restart.sh` 已内置该 `chmod`，执行 `./restart.sh` 会自动修正，
+> 因此发布前端后直接运行 `./restart.sh` 即可。
+
+### 排查白屏的快速方法
+
+```bash
+# 正常应返回 text/javascript；若返回 text/html 说明静态资源没读到（权限问题）
+curl -s -o /dev/null -w "%{http_code} %{content_type}\n" https://<域名>/assets/<某个chunk>.js
+```
