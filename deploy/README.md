@@ -95,3 +95,67 @@ chmod -R u=rwX,go=rX /home/ecs-user/Projects/report_collect/frontend/dist
 # 正常应返回 text/javascript；若返回 text/html 说明静态资源没读到（权限问题）
 curl -s -o /dev/null -w "%{http_code} %{content_type}\n" https://<域名>/assets/<某个chunk>.js
 ```
+
+## 6. 飞书卡片回调（一键重试失败）
+
+### 开放平台配置
+
+| 项 | 值 |
+| --- | --- |
+| 卡片请求地址 | `https://report.toputils.top/api/feishu/card/callback` |
+| Verification Token | 填入 `backend/config.yaml` 的 `feishu.verification_token` |
+| Encrypt Key | 建议开启并填入 `backend/config.yaml` 的 `feishu.encrypt_key` |
+
+`config.yaml` 对应配置：
+
+```yaml
+feishu:
+  app_id: cli_xxxxxxxx
+  app_secret: xxxxxxxx
+  chat_id: oc_xxxxxxxx            # 只允许该群的卡片动作
+  verification_token: xxxxxxxx    # 与开放平台一致
+  encrypt_key: xxxxxxxx           # 启用加密套件后必填
+```
+
+注意：应用需要开通 `im:message:send_as_bot` 权限，并**把机器人拉进目标群**，否则发消息会报 `230002 Bot/User can NOT be out of the chat`。
+
+### 安全校验（三道）
+
+1. `verification_token` 必须一致（URL 验证握手只校验这一项）
+2. 卡片动作必须来自配置的群 `open_chat_id`
+3. 配置 `encrypt_key` 后：AES-256-CBC 解密载荷 + 校验 `X-Lark-Signature`
+   `signature = sha256(timestamp + nonce + encrypt_key + body)`
+
+另有频率限制：同一批失败邮件 5 分钟只允许触发一次重试，重试幂等。
+
+## 7. 邮件静态附件
+
+把文件放到（服务器）：
+
+```
+/home/ecs-user/Projects/report_collect/backend/mail_attachments/
+```
+
+- 目录内所有非隐藏文件会**自动附加到每封邮件**，并出现在邮件正文的"其他附件"清单
+- 只给某个报告附带：放到 `mail_attachments/<报告ID>/`
+- 超 `mail.max_attachment_mb`（默认 20MB）自动跳过并记日志
+- 修改**不需要重启**，每次发信实时扫描
+- 注意：附件会随每封邮件发送，单文件建议 ≤2MB
+
+```yaml
+mail:
+  attachment_dir: mail_attachments
+  max_attachment_mb: 20
+```
+
+## 8. 邮件发送规则（当前实现）
+
+| 项 | 说明 |
+| --- | --- |
+| 收件人 | 勾选哪几条就发给哪几个本人（方案 A），附件只含本人这一条 |
+| 节流 | 每封间隔 `mail.send_interval_seconds`（当前 3 秒） |
+| 状态 | 成功 → `sent` + `is_processed`；失败 → **状态不变**，只记 `mail_error` |
+| 进度 | 发送中每 30 秒飞书汇报一次（纯文本，无按钮） |
+| 完成 | 全部成功 → 纯文本汇报；有失败 → 交互卡片 + 一键重试按钮 |
+| 重试 | 点按钮 → 飞书回调 → 冷却 `retry_delay_seconds`（300 秒）→ 只重试失败邮箱 |
+| 测试门控 | `app/services/mailer.py` 里**唯一一行**，注释掉即真实发送 |
