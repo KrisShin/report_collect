@@ -3,31 +3,57 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>报告信息汇总</title>
+    <meta name="color-scheme" content="light" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <title>中国电动重卡补能基础设施半年度进展报告</title>
+    <style>
+      /* 移动端自适应：卡片铺满、内边距收窄、主标题字号下调。
+         不支持媒体查询的客户端（如 Outlook 桌面端）保持 640px 定宽版式。 */
+      @media only screen and (max-width: 640px) {
+        .mail-card { width: 100% !important; max-width: 100% !important; }
+        .pad-outer { padding-left: 8px !important; padding-right: 8px !important; }
+        .pad-x { padding-left: 22px !important; padding-right: 22px !important; }
+        .mail-title { font-size: 20px !important; line-height: 32px !important; }
+      }
+    </style>
   </head>
   <body style="margin:0;padding:0;background-color:#eef2f7;-webkit-font-smoothing:antialiased;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef2f7;padding:28px 12px;">
+    <!-- 预览摘要：仅在收件箱列表中显示，正文不可见 -->
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#eef2f7;">
+      《中国电动重卡补能基础设施半年度进展报告》全文已分享，敬请查收。
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef2f7;">
       <tr>
-        <td align="center">
-          <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="width:640px;max-width:100%;background-color:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 6px 24px rgba(15,43,70,0.10);">
+        <td align="center" class="pad-outer" style="padding:28px 12px;">
+          <table role="presentation" align="center" width="640" cellpadding="0" cellspacing="0" border="0" class="mail-card" style="width:640px;max-width:100%;background-color:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 6px 24px rgba(15,43,70,0.10);">
 
             <!-- 顶部主视觉 -->
             <tr>
-              <td style="background-color:#0f2b46;background-image:linear-gradient(135deg,#0f2b46 0%,#1d4e7a 62%,#2b6ca3 100%);padding:34px 40px 30px 40px;">
+              <td class="pad-x" style="background-color:#0f2b46;background-image:linear-gradient(135deg,#0f2b46 0%,#1d4e7a 62%,#2b6ca3 100%);padding:38px 40px 34px 40px;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
-                    <td style="font-family:Georgia,'Songti SC',serif;font-size:13px;letter-spacing:3px;color:#c8a15a;text-transform:uppercase;">
+                    <td style="font-family:Georgia,'Songti SC',serif;font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#c8a15a;">
                       TSINGHUA EIRI
                     </td>
                   </tr>
                   <tr>
-                    <td style="padding-top:14px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:1px;">
-                      报告信息汇总
+                    <td style="padding-top:16px;font-size:0;line-height:0;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="44" height="3" style="width:44px;height:3px;background-color:#c8a15a;font-size:0;line-height:0;">&nbsp;</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="mail-title" style="padding-top:18px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:23px;line-height:36px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">
+                      中国电动重卡补能基础设施半年度进展报告
                     </td>
                   </tr>
                   <tr>
                     <td style="padding-top:10px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:13px;line-height:22px;color:rgba(255,255,255,0.78);">
-                      Report Collection &middot; 数据汇总通知
+                      2026年1—6月 &middot; 行业进展报告分享
                     </td>
                   </tr>
                 </table>
@@ -41,108 +67,40 @@
 
             <!-- 正文 -->
             <tr>
-              <td style="padding:32px 40px 8px 40px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:14px;line-height:24px;color:#2f3b4a;">
-                <p style="margin:0 0 14px 0;">您好：</p>
-                <p style="margin:0 0 14px 0;">
-                  【占位文案，后续修改】以下为本轮报告收集的结果汇总，共
-                  <strong style="color:#0f2b46;">{{ record_count }}</strong> 条记录，明细见附件 Excel。
-                </p>
-                <p style="margin:0 0 22px 0;color:#5a6b7c;">
-                  【占位文案，后续修改】请查收并按要求完成后续处理，如有疑问请直接回复本邮件。
-                </p>
+              <td class="pad-x" style="padding:34px 40px 4px 40px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:15px;line-height:28px;color:#37424f;mso-line-height-rule:exactly;">
+                <p style="margin:0 0 18px 0;font-size:15px;line-height:28px;font-weight:600;color:#0f2b46;">各位专家、行业同仁：</p>
+                <p style="margin:0 0 22px 0;font-size:16px;line-height:30px;font-weight:600;color:#1d4e7a;">感谢各位对《中国电动重卡补能基础设施半年度进展报告》的关注！</p>
+                <p style="margin:0 0 16px 0;">现将报告全文分享给各位。本报告聚焦2026年1—6月，围绕电动重卡补能基础设施建设运行、技术装备、标准及政策等方面，梳理行业发展现状与趋势，供各位参考。</p>
+                <p style="margin:0 0 24px 0;">后续我们将持续跟踪行业动态、开展专题调研、案例征集等工作，期待继续得到各位的支持与关注，也欢迎提出宝贵意见，共同推动行业发展。</p>
               </td>
             </tr>
 
-            <!-- 统计卡片 -->
+            <!-- 联系方式 -->
             <tr>
-              <td style="padding:0 40px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5f8fc;border:1px solid #e2eaf3;border-radius:8px;">
+              <td class="pad-x" style="padding:0 40px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5f8fc;border-left:4px solid #c8a15a;border-radius:6px;">
                   <tr>
-                    <td width="33%" align="center" style="padding:18px 8px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;">
-                      <div style="font-size:22px;font-weight:700;color:#0f2b46;">{{ record_count }}</div>
-                      <div style="font-size:12px;color:#7a8a9a;padding-top:6px;">记录条数</div>
-                    </td>
-                    <td width="33%" align="center" style="padding:18px 8px;border-left:1px solid #e2eaf3;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;">
-                      <div style="font-size:22px;font-weight:700;color:#0f2b46;">{{ report_titles|length }}</div>
-                      <div style="font-size:12px;color:#7a8a9a;padding-top:6px;">涉及报告</div>
-                    </td>
-                    <td width="33%" align="center" style="padding:18px 8px;border-left:1px solid #e2eaf3;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;">
-                      <div style="font-size:13px;font-weight:600;color:#0f2b46;padding-top:5px;">{{ generated_at }}</div>
-                      <div style="font-size:12px;color:#7a8a9a;padding-top:6px;">生成时间</div>
+                    <td style="padding:16px 18px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:14px;line-height:26px;color:#41505f;">
+                      如有任何疑问或建议，欢迎随时通过邮件或微信（<span style="color:#0f2b46;font-weight:600;">18280144300</span>）与我们联系。
                     </td>
                   </tr>
                 </table>
               </td>
             </tr>
 
-            <!-- 明细表 -->
+            <!-- 结尾与落款 -->
             <tr>
-              <td style="padding:28px 40px 8px 40px;">
-                <div style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:15px;font-weight:700;color:#0f2b46;padding-bottom:12px;border-bottom:2px solid #0f2b46;">
-                  记录明细
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:0 40px 8px 40px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:12.5px;color:#33414f;">
-                  <tr style="background-color:#0f2b46;">
-                    <th align="left" style="padding:10px 8px;color:#ffffff;font-weight:600;">#</th>
-                    <th align="left" style="padding:10px 8px;color:#ffffff;font-weight:600;">报告</th>
-                    <th align="left" style="padding:10px 8px;color:#ffffff;font-weight:600;">姓名</th>
-                    <th align="left" style="padding:10px 8px;color:#ffffff;font-weight:600;">单位</th>
-                    <th align="left" style="padding:10px 8px;color:#ffffff;font-weight:600;">职务</th>
-                    <th align="left" style="padding:10px 8px;color:#ffffff;font-weight:600;">邮箱</th>
-                  </tr>
-                  {% for record in records %}
-                  <tr style="background-color:{{ '#ffffff' if loop.index0 % 2 == 0 else '#f5f8fc' }};">
-                    <td style="padding:10px 8px;border-bottom:1px solid #e8eef5;color:#7a8a9a;">{{ record.index }}</td>
-                    <td style="padding:10px 8px;border-bottom:1px solid #e8eef5;">{{ record.report }}</td>
-                    <td style="padding:10px 8px;border-bottom:1px solid #e8eef5;font-weight:600;color:#0f2b46;">{{ record.name }}</td>
-                    <td style="padding:10px 8px;border-bottom:1px solid #e8eef5;">{{ record.organization }}</td>
-                    <td style="padding:10px 8px;border-bottom:1px solid #e8eef5;">{{ record.position }}</td>
-                    <td style="padding:10px 8px;border-bottom:1px solid #e8eef5;color:#2b6ca3;">{{ record.email }}</td>
-                  </tr>
-                  {% endfor %}
-                </table>
-                {% if record_count > records|length %}
-                <div style="padding-top:8px;font-size:12px;color:#7a8a9a;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;">
-                  仅展示前 {{ records|length }} 条，完整明细请查看附件。
-                </div>
-                {% endif %}
-              </td>
-            </tr>
-
-            <!-- 附件说明 -->
-            <tr>
-              <td style="padding:20px 40px 4px 40px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fbf7ef;border-left:4px solid #c8a15a;border-radius:4px;">
-                  <tr>
-                    <td style="padding:14px 16px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:13px;line-height:22px;color:#6b5a35;">
-                      {% if extra_attachments %}
-                      <strong>附件：</strong>{{ extra_attachments | join('、') }}
-                      {% else %}
-                      本邮件暂无附件
-                      {% endif %}
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-
-            <!-- 落款 -->
-            <tr>
-              <td style="padding:28px 40px 34px 40px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:13px;line-height:24px;color:#5a6b7c;">
-                <p style="margin:0;">【占位落款，后续修改】</p>
-                <p style="margin:0;font-weight:600;color:#0f2b46;">清华四川能源互联网研究院-电动交通与车网互动研究咨询团队</p>
+              <td class="pad-x" style="padding:26px 40px 36px 40px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:15px;line-height:28px;color:#37424f;">
+                <p style="margin:0;">感谢支持！</p>
+                <p style="margin:0 0 20px 0;">祝好！</p>
+                <p style="margin:0;padding-top:18px;border-top:1px solid #e2eaf3;font-size:13.5px;line-height:24px;font-weight:600;color:#0f2b46;">清华四川能源互联网研究院-电动交通与车网互动研究咨询团队</p>
               </td>
             </tr>
 
             <!-- 页脚 -->
             <tr>
-              <td style="background-color:#0f2b46;padding:18px 40px;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;font-size:11.5px;line-height:20px;color:rgba(255,255,255,0.62);">
-                本邮件由报告收集系统自动发送，请勿直接回复敏感信息。<br />
-                Report Collection System &middot; Tsinghua EIRI
+              <td class="pad-x" style="background-color:#0f2b46;padding:20px 40px;text-align:center;font-family:Georgia,'Songti SC',serif;font-size:11.5px;line-height:20px;letter-spacing:3px;color:#c8a15a;">
+                TSINGHUA EIRI
               </td>
             </tr>
 

@@ -66,7 +66,7 @@ npm run dev
 - **AI 质量判定**：接入 DeepSeek V4 Flash（`ai` 配置段），后台判定提交是否为垃圾/虚假信息，写入 `ai_flag / ai_score / ai_reason`；管理端可按"正常/可疑/判定失败/未判定"过滤，鼠标悬停查看理由
 - **邮件收件人**：`mail.recipients`（当前 `krisshin@yeah.net`）；为空时回退为提交人邮箱
 - **测试拦截**：当前在 `mailer.py` 顶部用 `TEST_INBOX = "krisshin@yeah.net"` 硬编码，所有邮件统一只发该测试邮箱；发布前删除该常量并恢复业务收件人
-- **邮件模板**：`backend/app/templates/email_report.html`，Jinja2 渲染，预览见 `docs/sample-email-preview.html`
+- **邮件模板**：`backend/app/templates/email_report.html`（HTML 正文，经 Jinja2 渲染）+ `backend/app/templates/email_report.txt`（纯文本兜底，保留原换行）；当前正文为静态内容、无待替换变量，预览见 `docs/sample-email-preview.html`
 
 
 ## 界面

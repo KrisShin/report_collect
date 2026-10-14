@@ -8,11 +8,22 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from app.core.config import BACKEND_DIR, settings
 
 TEMPLATE_DIR = BACKEND_DIR / "app" / "templates"
+HTML_TEMPLATE_NAME = "email_report.html"
+TEXT_TEMPLATE_NAME = "email_report.txt"
 
 env = Environment(
     loader=FileSystemLoader(TEMPLATE_DIR),
     autoescape=select_autoescape(["html", "xml"]),
 )
+
+
+def render_report_email_text() -> str:
+    """纯文本正文。
+
+    与 ``email_report.html`` 的正文保持一致（无变量），供不支持 HTML 的
+    客户端兜底显示；段落之间保留空行，客户端里换行依旧可读。
+    """
+    return (TEMPLATE_DIR / TEXT_TEMPLATE_NAME).read_text(encoding="utf-8").strip()
 
 
 def render_report_email(
@@ -30,7 +41,7 @@ def render_report_email(
         if title and title not in report_titles:
             report_titles.append(title)
 
-    template = env.get_template("email_report.html")
+    template = env.get_template(HTML_TEMPLATE_NAME)
     return template.render(
         generated_at=moment.strftime("%Y-%m-%d %H:%M"),
         record_count=len(records),

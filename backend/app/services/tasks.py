@@ -19,7 +19,7 @@ from app.models.report import Report
 from app.models.submission import Submission
 from app.services.ai import check_submission
 from app.services.attachments import collect_attachments
-from app.services.email_template import render_report_email
+from app.services.email_template import render_report_email, render_report_email_text
 from app.services.feishu import feishu_client
 from app.services.mailer import MailError, OutgoingMail, send_mails
 
@@ -186,6 +186,7 @@ async def deliver_report_mail(log_id: int, submission_ids: list[int]) -> None:
 
         mails: list[OutgoingMail] = []
         attached_names: list[str] = []
+        text_body = render_report_email_text()
         for row in rows:
             row.report_title = titles.get(row.report_id)
             # 附件只使用附件目录里的静态文件（不再自动生成 xlsx）
@@ -200,6 +201,7 @@ async def deliver_report_mail(log_id: int, submission_ids: list[int]) -> None:
                         records=[row],
                         extra_attachments=[name for name, _ in static_files],
                     ),
+                    text_body=text_body,
                     extra_attachments=static_files,
                 )
             )

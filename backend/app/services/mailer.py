@@ -37,6 +37,8 @@ class OutgoingMail:
     recipients: list[str]
     subject: str
     html_body: str
+    # 纯文本兜底正文；为空时退回一句提示
+    text_body: str | None = None
     attachment_name: str | None = None
     attachment_bytes: bytes | None = None
     # 静态附件目录里的文件：[(文件名, 内容)]
@@ -48,7 +50,7 @@ def _build_message(mail: OutgoingMail) -> EmailMessage:
     message["From"] = formataddr((settings.mail.from_name, settings.mail.user))
     message["To"] = ", ".join(mail.recipients)
     message["Subject"] = mail.subject
-    message.set_content("请使用支持 HTML 的邮件客户端查看本邮件。")
+    message.set_content(mail.text_body or "请使用支持 HTML 的邮件客户端查看本邮件。")
     message.add_alternative(mail.html_body, subtype="html")
 
     if mail.attachment_bytes and mail.attachment_name:
@@ -130,6 +132,7 @@ async def send_mail(
     recipients: list[str],
     subject: str,
     html_body: str,
+    text_body: str | None = None,
     *,
     attachment_name: str | None = None,
     attachment_bytes: bytes | None = None,
@@ -145,6 +148,7 @@ async def send_mail(
                 recipients=list(recipients),
                 subject=subject,
                 html_body=html_body,
+                text_body=text_body,
                 attachment_name=attachment_name,
                 attachment_bytes=attachment_bytes,
             )
