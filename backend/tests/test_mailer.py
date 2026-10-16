@@ -117,3 +117,84 @@ async def test_collect_attachments_from_static_dir(tmp_path, monkeypatch):
     # 超出大小上限时跳过
     monkeypatch.setattr(settings.mail, "max_attachment_mb", 0)
     assert collect_attachments("report-1") == []
+
+
+async def test_deliver_report_mail_reads_attachments_once(monkeypatch):
+    """群发时附件只读一次盘，且每封邮件复用同一份 bytes（避免 N 倍内存）。"""
+    from app.services import tasks
+
+    shared = [("进展报告.pdf", b"x" * 1024)]
+    reads: list[str | None] = []
+    batch: list[OutgoingMail] = []
+
+    def fake_collect(report_id: str | None = None) -> list[tuple[str, bytes]]:
+        reads.append(report_id)
+        return shared
+
+    async def fake_send_mails(mails: list[OutgoingMail], **_kwargs) -> list[None]:
+        batch.extend(mails)
+        return [None] * len(mails)
+
+    async def fake_titles(_db) -> dict[str, str]:
+        return {}
+
+    async def fake_notify(*_args, **_kwargs) -> None:
+        return None
+
+    class _FakeLog:
+        subject = "【报告收集】信息确认"
+        status = "pending"
+        error = None
+        attachment_name = None
+        failed_submission_ids = None
+        sent_at = None
+
+    class _FakeRow:
+        def __init__(self, index: int) -> None:
+            self.id = index
+            self.email = f"u{index}@example.com"
+            self.report_id = "a" * 32
+            self.report_title = None
+            self.status = "pending"
+            self.mail_sent_at = None
+            self.mail_error = None
+            self.is_processed = False
+            self.processed_at = None
+            self.processed_action = None
+
+    rows = [_FakeRow(index) for index in (1, 2, 3)]
+
+    class _FakeResult:
+        def all(self) -> list[_FakeRow]:
+            return rows
+
+    class _FakeDb:
+        async def get(self, *_args) -> _FakeLog:
+            return _FakeLog()
+
+        async def scalars(self, *_args) -> _FakeResult:
+            return _FakeResult()
+
+        async def commit(self) -> None:
+            return None
+
+    class _FakeSession:
+        async def __aenter__(self) -> _FakeDb:
+            return _FakeDb()
+
+        async def __aexit__(self, *_exc) -> bool:
+            return False
+
+    monkeypatch.setattr(tasks, "AsyncSessionLocal", _FakeSession)
+    monkeypatch.setattr(tasks, "collect_attachments", fake_collect)
+    monkeypatch.setattr(tasks, "send_mails", fake_send_mails)
+    monkeypatch.setattr(tasks, "render_report_email", lambda **_kwargs: "<p>x</p>")
+    monkeypatch.setattr(tasks, "_report_titles", fake_titles)
+    monkeypatch.setattr(tasks, "_notify_feishu_safe", fake_notify)
+    monkeypatch.setattr(tasks, "_notify_feishu_card_safe", fake_notify)
+
+    await tasks.deliver_report_mail(1, [1, 2, 3])
+
+    assert reads == ["a" * 32]  # 3 封邮件只读一次附件
+    assert len(batch) == 3
+    assert all(mail.extra_attachments is shared for mail in batch)  # 复用同一份 bytes

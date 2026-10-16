@@ -187,10 +187,15 @@ async def deliver_report_mail(log_id: int, submission_ids: list[int]) -> None:
         mails: list[OutgoingMail] = []
         attached_names: list[str] = []
         text_body = render_report_email_text()
+        # 附件按报告缓存：同一报告只读一次磁盘，N 封邮件复用同一份 bytes，
+        # 避免群发时内存里同时驻留 N 份附件
+        attachment_cache: dict[str | None, list[tuple[str, bytes]]] = {}
         for row in rows:
             row.report_title = titles.get(row.report_id)
             # 附件只使用附件目录里的静态文件（不再自动生成 xlsx）
-            static_files = collect_attachments(row.report_id)
+            if row.report_id not in attachment_cache:
+                attachment_cache[row.report_id] = collect_attachments(row.report_id)
+            static_files = attachment_cache[row.report_id]
             if static_files:
                 attached_names = [name for name, _ in static_files]
             mails.append(
