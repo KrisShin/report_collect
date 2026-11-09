@@ -65,4 +65,4 @@ security:
   enable_security_headers: true
   unique_phone_per_report: true
   unique_email_per_report: true
-  unique_ip_per_report: true
+  unique_ip_per_report: false

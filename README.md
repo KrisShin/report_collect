@@ -61,7 +61,7 @@ npm run dev
 
 ## 数据处理与质量
 
-- **提交唯一性**：同一报告内，**手机号 / 邮箱 / IP** 任一已存在即拒绝（409）。手机号与邮箱由数据库唯一约束保证，IP 由接口 + Redis 锁保证，可在 `security.unique_*_per_report` 分别开关
+- **提交唯一性**：同一报告内，手机号 / 邮箱任一已存在即拒绝（409），由数据库唯一约束保证；IP 唯一性默认关闭，避免同一 NAT/办公网下多人只能提交一份，可通过 `security.unique_ip_per_report` 开启
 - **处理状态**：订阅 `is_processed / processed_at / processed_action`，发送邮件后自动标记为已处理；管理端可按"未处理/已处理"过滤
 - **AI 质量判定**：接入 DeepSeek V4 Flash（`ai` 配置段），后台判定提交是否为垃圾/虚假信息，写入 `ai_flag / ai_score / ai_reason`；管理端可按"正常/可疑/判定失败/未判定"过滤，鼠标悬停查看理由
 - **邮件收件人**：`mail.recipients`（当前 `krisshin@yeah.net`）；为空时回退为提交人邮箱

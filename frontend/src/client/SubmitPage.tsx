@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { Button, Form, Input, SpinLoading, Toast } from 'antd-mobile'
+import { Button, Form, Input, SpinLoading } from 'antd-mobile'
 import { useNavigate, useParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { api, errorMessage, reportDiagnostic } from '../shared/api'
@@ -47,10 +47,12 @@ function SubmitForm({ reportId }: { reportId: string }) {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [values, setValues] = useState<Partial<FormValues>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   useEffect(() => {
     setReport(null)
     setLoadError(null)
+    setSubmitError(null)
     reportDiagnostic('page_open', { message: `report_id=${reportId}` })
     api
       .get<ReportPublic>(`/api/client/reports/${reportId}`)
@@ -73,6 +75,7 @@ function SubmitForm({ reportId }: { reportId: string }) {
     EMAIL_RE.test(values.email ?? '')
 
   const onFinish = async (formValues: FormValues) => {
+    setSubmitError(null)
     setSubmitting(true)
     const payload = { ...formValues, report_id: reportId }
     try {
@@ -80,13 +83,14 @@ function SubmitForm({ reportId }: { reportId: string }) {
       reportDiagnostic('submit_ok', { message: 'created', detail: response.data })
       navigate('/m/success', { replace: true })
     } catch (error) {
+      const message = errorMessage(error)
+      setSubmitError(message)
       reportDiagnostic('submit_error', {
         status: axios.isAxiosError(error) ? error.response?.status : undefined,
-        message: errorMessage(error),
+        message,
         detail: axios.isAxiosError(error) ? error.response?.data : String(error),
         payload,
       })
-      Toast.show({ content: errorMessage(error), duration: 3000 })
     } finally {
       setSubmitting(false)
     }
@@ -117,7 +121,7 @@ function SubmitForm({ reportId }: { reportId: string }) {
   }
 
   return (
-    <div className="client-page">
+    <div className={`client-page${submitError ? ' has-submit-error' : ''}`}>
       <div className="client-hero">
         <div className="client-hero-badge">Tsinghua EIRI · Report</div>
         <div className="client-hero-title">{report.title}</div>
@@ -193,6 +197,13 @@ function SubmitForm({ reportId }: { reportId: string }) {
       </div>
 
       <div className="client-footer">
+        {submitError && (
+          <div className="submit-feedback" role="alert" aria-live="assertive">
+            <div className="submit-feedback-title">提交失败</div>
+            <div className="submit-feedback-reason">{submitError}</div>
+            <div className="submit-feedback-retry">请稍候重试</div>
+          </div>
+        )}
         <Button
           block
           className="rc-primary-btn"

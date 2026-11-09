@@ -193,6 +193,7 @@ async def test_send_mail_is_queued(client, admin_client):
 async def test_unique_email_and_ip_per_report(client, admin_client, monkeypatch):
     from app.core.config import settings
 
+    monkeypatch.setattr(settings.security, "unique_ip_per_report", True)
     report_id = await create_report(admin_client)
     first = await client.post(
         "/api/client/submissions", json={**BASE_PAYLOAD, "report_id": report_id}
@@ -236,3 +237,27 @@ async def test_unique_email_and_ip_per_report(client, admin_client, monkeypatch)
         },
     )
     assert allowed.status_code == 201
+
+
+async def test_same_network_allowed_when_ip_uniqueness_disabled(client, admin_client):
+    from app.core.config import settings
+
+    assert settings.security.unique_ip_per_report is False
+    report_id = await create_report(admin_client)
+
+    first = await client.post(
+        "/api/client/submissions", json={**BASE_PAYLOAD, "report_id": report_id}
+    )
+    assert first.status_code == 201
+
+    second = await client.post(
+        "/api/client/submissions",
+        json={
+            **BASE_PAYLOAD,
+            "report_id": report_id,
+            "name": "李四",
+            "phone": "13900139000",
+            "email": "lisi@example.com",
+        },
+    )
+    assert second.status_code == 201

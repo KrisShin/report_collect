@@ -107,10 +107,10 @@ class SecurityConfig(BaseModel):
     diagnostics_per_minute: int = 30
     enforce_origin_check: bool = True
     enable_security_headers: bool = True
-    # 同一报告内唯一性限制（IP 限制请注意 NAT 场景）
+    # 同一报告内唯一性限制（IP 唯一性默认关闭，避免 NAT 下多人互相阻塞）
     unique_phone_per_report: bool = True
     unique_email_per_report: bool = True
-    unique_ip_per_report: bool = True
+    unique_ip_per_report: bool = False
 
 
 class AdminConfig(BaseModel):
