@@ -222,7 +222,7 @@ async def send_submissions_mail(
     log = MailLog(
         submission_ids=json.dumps(submission_ids),
         recipient=";".join(recipients),
-        subject="【报告收集】信息确认",
+        subject="【报告分享】中国电动重卡补能基础设施进展报告",
         status="pending",
         operator_id=admin.id,
     )
