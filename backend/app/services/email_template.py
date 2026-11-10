@@ -1,11 +1,12 @@
 """邮件 HTML 模板渲染。"""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app.core.config import BACKEND_DIR, settings
+from app.core.time import to_local
 
 TEMPLATE_DIR = BACKEND_DIR / "app" / "templates"
 HTML_TEMPLATE_NAME = "email_report.html"
@@ -33,7 +34,7 @@ def render_report_email(
     extra_attachments: list[str] | None = None,
 ) -> str:
     tz = ZoneInfo(settings.app.timezone)
-    moment = (generated_at or datetime.now(tz)).astimezone(tz)
+    moment = to_local(generated_at or datetime.now(UTC)) or datetime.now(tz)
 
     report_titles: list[str] = []
     for record in records:

@@ -16,8 +16,8 @@ import {
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import type { FilterValue, SorterResult } from 'antd/es/table/interface'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import dayjs from 'dayjs'
 import { api, errorMessage } from '../shared/api'
+import { formatShanghai } from '../shared/datetime'
 import { useIsMobile } from '../shared/useIsMobile'
 import type { PageResult, ReportAdmin, Submission, SubmissionStatus } from '../shared/types'
 
@@ -118,7 +118,7 @@ export default function SubmissionsPage() {
       const url = URL.createObjectURL(response.data)
       const link = document.createElement('a')
       link.href = url
-      link.download = `报告收集_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`
+      link.download = `报告收集_${formatShanghai(new Date(), 'YYYYMMDD_HHmmss')}.xlsx`
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -217,7 +217,7 @@ export default function SubmissionsPage() {
       dataIndex: 'submitted_at',
       sorter: true,
       width: 180,
-      render: (value: string) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-'),
+      render: (value: string) => formatShanghai(value) || '-',
     },
     {
       title: '操作',

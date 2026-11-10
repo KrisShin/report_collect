@@ -9,6 +9,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from app.core.config import settings
+from app.core.time import format_local, to_local
 
 HEADERS = ["序号", "报告", "单位", "职务", "姓名", "电话", "邮箱", "提交时间"]
 COLUMN_WIDTHS = [8, 28, 28, 20, 14, 16, 30, 20]
@@ -27,16 +28,8 @@ def build_submissions_xlsx(submissions: list, sheet_title: str = "报告信息")
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    tz = ZoneInfo(settings.app.timezone)
     for index, item in enumerate(submissions, start=1):
-        submitted_at = item.submitted_at
-        if submitted_at and submitted_at.tzinfo is None:
-            submitted_at = submitted_at.replace(tzinfo=ZoneInfo("UTC"))
-        submitted_text = (
-            submitted_at.astimezone(tz).strftime("%Y-%m-%d %H:%M")
-            if submitted_at
-            else ""
-        )
+        submitted_text = format_local(item.submitted_at)
         worksheet.append(
             [
                 index,
@@ -63,5 +56,6 @@ def build_submissions_xlsx(submissions: list, sheet_title: str = "报告信息")
 
 def default_attachment_name(now: datetime | None = None) -> str:
     tz = ZoneInfo(settings.app.timezone)
-    moment = now.astimezone(tz) if now else datetime.now(tz)
+    moment = to_local(now) if now else datetime.now(tz)
+    moment = moment or datetime.now(tz)
     return f"报告收集_{moment.strftime('%Y%m%d_%H%M%S')}.xlsx"

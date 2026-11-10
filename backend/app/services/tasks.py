@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 
 from app.core.config import settings
+from app.core.time import format_local
 from app.db.session import AsyncSessionLocal
 from app.models.mail_log import MailLog
 from app.models.report import Report
@@ -58,10 +59,8 @@ async def process_submission(submission_id: int) -> None:
         await _notify_feishu(db, submission, report.title if report else "未知报告")
 
 
-async def _notify_feishu(db, submission: Submission, report_title: str) -> None:  # noqa: ANN001
-    from app.core.config import settings
-
-    text = "\n".join(
+def build_submission_notification(submission: Submission, report_title: str) -> str:
+    return "\n".join(
         [
             f"【新的报告提交】{report_title}",
             f"姓名：{submission.name}",
@@ -69,10 +68,14 @@ async def _notify_feishu(db, submission: Submission, report_title: str) -> None:
             f"职务：{submission.position}",
             f"电话：{submission.phone}",
             f"邮箱：{submission.email}",
-            f"提交时间：{submission.submitted_at:%Y-%m-%d %H:%M}",
+            f"提交时间：{format_local(submission.submitted_at)}",
             f"管理端：{settings.admin_url}",
         ]
     )
+
+
+async def _notify_feishu(db, submission: Submission, report_title: str) -> None:  # noqa: ANN001
+    text = build_submission_notification(submission, report_title)
     try:
         await feishu_client.send_text(text)
         submission.feishu_status = "sent"

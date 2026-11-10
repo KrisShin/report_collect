@@ -19,6 +19,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
 import { api, errorMessage } from '../shared/api'
+import { formatShanghai } from '../shared/datetime'
 import { useIsMobile } from '../shared/useIsMobile'
 import type { ReportAdmin } from '../shared/types'
 
@@ -53,7 +54,7 @@ function windowBadge(report: ReportAdmin) {
 }
 
 function windowText(report: ReportAdmin) {
-  const fmt = (value?: string | null) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '')
+  const fmt = (value?: string | null) => formatShanghai(value)
   if (!report.start_at && !report.end_at) return '不限时间'
   return `${fmt(report.start_at) || '不限'} ~ ${fmt(report.end_at) || '不限'}`
 }

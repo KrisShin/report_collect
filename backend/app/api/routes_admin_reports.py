@@ -5,13 +5,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
+from app.core.time import to_db_utc
 from app.db.session import get_db
 from app.models.admin_user import AdminUser
 from app.models.report import Report
 from app.models.submission import Submission
 from app.schemas.report import ReportAdminRead, ReportCreate, ReportRead, ReportUpdate
 from app.services.audit import write_audit
-from app.services.report_window import to_db_utc
 
 router = APIRouter(prefix="/api/admin/reports", tags=["admin-reports"])
 

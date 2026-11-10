@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from app.services.wechat import is_wechat_browser
 
 BASE_PAYLOAD = {
@@ -38,6 +40,21 @@ async def test_create_submission_and_list(client, admin_client):
     assert body["items"][0]["name"] == "张三"
     assert body["items"][0]["report_id"] == report_id
     assert body["items"][0]["report_title"] == "年度报告收集"
+
+
+async def test_submission_datetime_is_serialized_with_utc_timezone(client, admin_client):
+    report_id = await create_report(admin_client)
+    created = await client.post(
+        "/api/client/submissions", json={**BASE_PAYLOAD, "report_id": report_id}
+    )
+    assert created.status_code == 201
+
+    listed = await client.get("/api/admin/submissions")
+    value = listed.json()["items"][0]["submitted_at"]
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+    assert parsed.tzinfo is not None
+    assert parsed.utcoffset().total_seconds() == 0
 
 
 async def test_submission_requires_active_report(client, admin_client):

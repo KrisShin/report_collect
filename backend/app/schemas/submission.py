@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.core.time import to_api_utc
+
 PHONE_PATTERN = r"^1[3-9]\d{9}$"
 # 只允许 ASCII 域名与 TLD，拒绝中文/国际化域名
 EMAIL_PATTERN = r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$"
@@ -82,6 +84,11 @@ class SubmissionRead(BaseModel):
     submitted_at: datetime
     mail_sent_at: datetime | None = None
     feishu_status: str | None = None
+
+    @field_validator("processed_at", "submitted_at", "mail_sent_at")
+    @classmethod
+    def normalize_datetime(cls, value: datetime | None) -> datetime | None:
+        return to_api_utc(value)
 
 
 class SubmissionCreated(BaseModel):

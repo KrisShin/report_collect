@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Button, Form, Input, SpinLoading } from 'antd-mobile'
 import { useNavigate, useParams } from 'react-router-dom'
-import dayjs from 'dayjs'
 import { api, errorMessage, reportDiagnostic } from '../shared/api'
+import { formatShanghai } from '../shared/datetime'
 import type { ReportPublic } from '../shared/types'
 import WechatGuard from './WechatGuard'
 
@@ -33,7 +33,7 @@ function ReportWindowNotice({ report }: { report: ReportPublic }) {
             ? '本次报告收集将于以下时间开放，请届时再打开本链接。'
             : '本次报告收集已于以下时间结束，感谢您的关注与参与。'}
         </div>
-        {moment && <div className="notice-time">{dayjs(moment).format('YYYY-MM-DD HH:mm')}</div>}
+        {moment && <div className="notice-time">{formatShanghai(moment)}</div>}
         <div className="notice-report">{report.title}</div>
       </div>
     </div>

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.services.report_window import to_api_utc
+from app.core.time import to_api_utc
 
 
 class ReportCreate(BaseModel):
@@ -72,7 +72,7 @@ class ReportRead(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    @field_validator("start_at", "end_at")
+    @field_validator("start_at", "end_at", "created_at", "updated_at")
     @classmethod
     def normalize_window(cls, value: datetime | None) -> datetime | None:
         return to_api_utc(value)
