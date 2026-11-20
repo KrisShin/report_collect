@@ -113,3 +113,27 @@ async def test_report_window_must_be_ordered(admin_client):
         },
     )
     assert response.status_code == 422
+
+
+async def test_report_email_subject(admin_client):
+    created = await admin_client.post(
+        "/api/admin/reports",
+        json={"title": "主题测试报告", "email_subject": "  自定义主题  "},
+    )
+    assert created.status_code == 201
+    body = created.json()
+    assert body["email_subject"] == "自定义主题"
+    assert body["has_email_template"] is False
+
+    report_id = body["id"]
+    listed = await admin_client.get("/api/admin/reports")
+    row = next(item for item in listed.json() if item["id"] == report_id)
+    assert row["email_subject"] == "自定义主题"
+    assert row["has_email_template"] is False
+    assert row["attachment_count"] == 0
+
+    cleared = await admin_client.patch(
+        f"/api/admin/reports/{report_id}", json={"email_subject": ""}
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["email_subject"] is None

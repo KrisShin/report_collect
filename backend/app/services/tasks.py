@@ -20,8 +20,13 @@ from app.models.report import Report
 from app.models.submission import Submission
 from app.services.ai import check_submission
 from app.services.attachments import collect_attachments
-from app.services.email_template import render_report_email, render_report_email_text
+from app.services.email_template import (
+    default_subject,
+    render_report_email,
+    render_report_email_text,
+)
 from app.services.feishu import feishu_client
+from app.services.html_text import html_to_text
 from app.services.mailer import MailError, OutgoingMail, send_mails
 
 PROGRESS_INTERVAL_SECONDS = 30
@@ -29,9 +34,13 @@ PROGRESS_INTERVAL_SECONDS = 30
 logger = logging.getLogger(__name__)
 
 
-async def _report_titles(db) -> dict[str, str]:  # noqa: ANN001
-    rows = (await db.execute(select(Report.id, Report.title))).all()
-    return {report_id: title for report_id, title in rows}
+async def _reports(db, report_ids: set[str]) -> dict[str, Report]:  # noqa: ANN001
+    """只加载本批提交涉及的报告，避免把所有模板正文都读进内存。"""
+
+    if not report_ids:
+        return {}
+    rows = (await db.scalars(select(Report).where(Report.id.in_(report_ids)))).all()
+    return {report.id: report for report in rows}
 
 
 async def process_submission(submission_id: int) -> None:
@@ -170,8 +179,9 @@ class _MailProgressReporter:
 
 
 async def deliver_report_mail(log_id: int, submission_ids: list[int]) -> None:
-    """方案 A：勾选 N 条 → 发 N 封，每封只发给该条本人，附件只含本人这一条。
+    """勾选 N 条 → 发 N 封，每封只发给该条本人。
 
+    附件按报告取：报告上传附件优先，否则使用全局 mail_attachments；
     复用一条 SMTP 连接顺序发送，按 mail.send_interval_seconds 节流；
     单封失败不影响其他邮件，逐条回写状态。
     """
@@ -185,29 +195,43 @@ async def deliver_report_mail(log_id: int, submission_ids: list[int]) -> None:
         rows = list(
             (await db.scalars(select(Submission).where(Submission.id.in_(submission_ids)))).all()
         )
-        titles = await _report_titles(db)
+        report_ids = {row.report_id for row in rows if row.report_id}
+        reports = await _reports(db, report_ids)
 
         mails: list[OutgoingMail] = []
-        attached_names: list[str] = []
-        text_body = render_report_email_text()
+        attached_names: set[str] = set()
+        default_text = render_report_email_text()
         # 附件按报告缓存：同一报告只读一次磁盘，N 封邮件复用同一份 bytes，
         # 避免群发时内存里同时驻留 N 份附件
         attachment_cache: dict[str | None, list[tuple[str, bytes]]] = {}
+        # 模板/纯文本按报告缓存；自定义模板是静态 HTML，纯文本由其自动生成
+        content_cache: dict[str | None, tuple[str | None, str]] = {}
         for row in rows:
-            row.report_title = titles.get(row.report_id)
-            # 附件只使用附件目录里的静态文件（不再自动生成 xlsx）
+            report = reports.get(row.report_id) if row.report_id else None
+            row.report_title = report.title if report else None
+
+            # 附件只使用附件目录里的静态文件（不再自动生成 xlsx）；
+            # collect_attachments 内部会优先使用报告上传附件
             if row.report_id not in attachment_cache:
                 attachment_cache[row.report_id] = collect_attachments(row.report_id)
             static_files = attachment_cache[row.report_id]
-            if static_files:
-                attached_names = [name for name, _ in static_files]
+            attached_names.update(name for name, _ in static_files)
+
+            if row.report_id not in content_cache:
+                template_html = report.email_template_html if report else None
+                text_body = html_to_text(template_html) if template_html else default_text
+                content_cache[row.report_id] = (template_html, text_body)
+            template_html, text_body = content_cache[row.report_id]
+
             mails.append(
                 OutgoingMail(
                     recipients=[row.email],
-                    subject=log.subject,
+                    subject=log.subject
+                    or default_subject(report.title if report else ""),
                     html_body=render_report_email(
                         records=[row],
                         extra_attachments=[name for name, _ in static_files],
+                        template_html=template_html,
                     ),
                     text_body=text_body,
                     extra_attachments=static_files,
@@ -248,7 +272,7 @@ async def deliver_report_mail(log_id: int, submission_ids: list[int]) -> None:
 
         failed = len(rows) - success
         log.status = "sent" if failed == 0 else ("failed" if success == 0 else "partial")
-        log.attachment_name = ";".join(attached_names) or None
+        log.attachment_name = ";".join(sorted(attached_names)) or None
         log.failed_submission_ids = json.dumps(failed_ids)
         log.sent_at = now if success else None
         log.error = None if failed == 0 else f"{failed} 封发送失败"

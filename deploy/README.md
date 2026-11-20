@@ -142,10 +142,28 @@ feishu:
 - 修改**不需要重启**，每次发信实时扫描
 - 注意：附件会随每封邮件发送，单文件建议 ≤2MB
 
+### 7.1 报告级上传附件（管理端）
+
+管理端「报告管理 → 编辑 → 邮件附件」上传的文件保存在：
+
+```
+/home/ecs-user/Projects/report_collect/backend/data/report_uploads/<报告ID>/
+```
+
+- 报告**有**上传附件时，只发送这些附件，旧 `mail_attachments/` 不再附加；
+- 报告**没有**上传附件时，继续使用上面的旧目录（全局 + 报告子目录）；
+- 管理端编辑报告时可点「导入全局附件」，把旧目录里的文件复制到 `data/report_uploads/<报告ID>/`；原全局文件保留；
+- 管理端删除附件只会删除 `data/report_uploads/` 里的文件，不会碰服务器人工放置的文件；
+- `deploy.sh` 已创建并 `chown` `backend/data`，运行 API/worker 的用户需要有写权限；
+- 备份时请同时备份 `backend/data/app.db` 与 `backend/data/report_uploads/`。
+
 ```yaml
 mail:
-  attachment_dir: mail_attachments
-  max_attachment_mb: 20
+  attachment_dir: mail_attachments      # 旧全局目录，保留
+  upload_dir: data/report_uploads       # 管理端上传目录
+  max_template_kb: 512                  # HTML 模板大小上限
+  max_upload_files: 10                  # 单次上传附件数上限
+  max_total_attachment_mb: 25           # 单次上传附件总大小上限
 ```
 
 ## 8. 邮件发送规则（当前实现）
@@ -153,7 +171,9 @@ mail:
 | 项 | 说明 |
 | --- | --- |
 | 收件人 | 勾选哪几条就发给哪几个本人（方案 A） |
-| 附件 | **只带 `mail_attachments/` 里的文件**，不再自动生成 xlsx（导出 xlsx 仍可在管理端"一键导出"下载） |
+| 主题 | 按报告分组：报告的 `email_subject`，为空回退「【报告分享】+ 报告标题」；每个报告一条 MailLog |
+| 模板 | 报告上传/导入了 HTML 就用它（静态发送，纯文本自动生成）；否则用全局 `email_report.html|.txt` |
+| 附件 | **上传附件优先**；报告没有上传附件时才带 `mail_attachments/` 里的文件（不再自动生成 xlsx） |
 | 节流 | 每封间隔 `mail.send_interval_seconds`（当前 3 秒） |
 | 状态 | 成功 → `sent` + `is_processed`；失败 → **状态不变**，只记 `mail_error` |
 | 进度 | 发送中每 30 秒飞书汇报一次（纯文本，无按钮） |

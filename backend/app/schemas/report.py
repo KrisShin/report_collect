@@ -1,15 +1,31 @@
 """报告 Schema。"""
 
+import re
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.time import to_api_utc
 
+# 邮件主题禁止换行与其余控制字符，避免邮件头注入
+_SUBJECT_CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def _normalize_email_subject(value):  # noqa: ANN001, ANN206
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return value
+    value = value.replace("\r", " ").replace("\n", " ").strip()
+    if _SUBJECT_CONTROL.search(value):
+        raise ValueError("邮件主题不能包含控制字符")
+    return value or None
+
 
 class ReportCreate(BaseModel):
     title: str = Field(min_length=1, max_length=512)
     description: str | None = Field(default=None, max_length=2000)
+    email_subject: str | None = Field(default=None, max_length=255)
     is_active: bool = True
     sort_order: int = 0
     start_at: datetime | None = None
@@ -28,6 +44,11 @@ class ReportCreate(BaseModel):
             return value or None
         return value
 
+    @field_validator("email_subject", mode="before")
+    @classmethod
+    def clean_email_subject(cls, value):  # noqa: ANN001, ANN206
+        return _normalize_email_subject(value)
+
     @field_validator("start_at", "end_at")
     @classmethod
     def normalize_window(cls, value: datetime | None) -> datetime | None:
@@ -43,6 +64,7 @@ class ReportCreate(BaseModel):
 class ReportUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=512)
     description: str | None = Field(default=None, max_length=2000)
+    email_subject: str | None = Field(default=None, max_length=255)
     is_active: bool | None = None
     sort_order: int | None = None
     start_at: datetime | None = None
@@ -52,6 +74,11 @@ class ReportUpdate(BaseModel):
     @classmethod
     def strip_title(cls, value):  # noqa: ANN001, ANN206
         return value.strip() if isinstance(value, str) else value
+
+    @field_validator("email_subject", mode="before")
+    @classmethod
+    def clean_email_subject(cls, value):  # noqa: ANN001, ANN206
+        return _normalize_email_subject(value)
 
     @field_validator("start_at", "end_at")
     @classmethod
@@ -65,6 +92,10 @@ class ReportRead(BaseModel):
     id: str
     title: str
     description: str | None = None
+    email_subject: str | None = None
+    has_email_template: bool = False
+    email_template_name: str | None = None
+    email_template_updated_at: datetime | None = None
     is_active: bool
     sort_order: int
     start_at: datetime | None = None
@@ -72,7 +103,13 @@ class ReportRead(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    @field_validator("start_at", "end_at", "created_at", "updated_at")
+    @field_validator(
+        "start_at",
+        "end_at",
+        "email_template_updated_at",
+        "created_at",
+        "updated_at",
+    )
     @classmethod
     def normalize_window(cls, value: datetime | None) -> datetime | None:
         return to_api_utc(value)
@@ -80,6 +117,7 @@ class ReportRead(BaseModel):
 
 class ReportAdminRead(ReportRead):
     submission_count: int = 0
+    attachment_count: int = 0
 
 
 class ReportPublic(BaseModel):

@@ -15,6 +15,17 @@ export interface ReportAdmin extends ReportPublic {
   created_at: string
   updated_at: string
   submission_count: number
+  email_subject?: string | null
+  has_email_template?: boolean
+  email_template_name?: string | null
+  email_template_updated_at?: string | null
+  attachment_count?: number
+}
+
+export interface ReportAttachment {
+  name: string
+  size: number
+  updated_at?: string | null
 }
 
 export interface Submission {

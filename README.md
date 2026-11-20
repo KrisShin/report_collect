@@ -64,9 +64,12 @@ npm run dev
 - **提交唯一性**：同一报告内，手机号 / 邮箱任一已存在即拒绝（409），由数据库唯一约束保证；IP 唯一性默认关闭，避免同一 NAT/办公网下多人只能提交一份，可通过 `security.unique_ip_per_report` 开启
 - **处理状态**：订阅 `is_processed / processed_at / processed_action`，发送邮件后自动标记为已处理；管理端可按"未处理/已处理"过滤
 - **AI 质量判定**：接入 DeepSeek V4 Flash（`ai` 配置段），后台判定提交是否为垃圾/虚假信息，写入 `ai_flag / ai_score / ai_reason`；管理端可按"正常/可疑/判定失败/未判定"过滤，鼠标悬停查看理由
-- **邮件收件人**：`mail.recipients`（当前 `krisshin@yeah.net`）；为空时回退为提交人邮箱
-- **测试拦截**：当前在 `mailer.py` 顶部用 `TEST_INBOX = "krisshin@yeah.net"` 硬编码，所有邮件统一只发该测试邮箱；发布前删除该常量并恢复业务收件人
-- **邮件模板**：`backend/app/templates/email_report.html`（HTML 正文，经 Jinja2 渲染）+ `backend/app/templates/email_report.txt`（纯文本兜底，保留原换行）；当前正文为静态内容、无待替换变量，预览见 `docs/sample-email-preview.html`
+- **邮件收件人**：管理端勾选哪几条就发给哪几个提交人本人（逐人单发）
+- **测试拦截**：`mailer.py` 的门控行当前已注释（真实发送）；如需临时拦截，取消该行注释即可
+- **报告级邮件设置**：管理端「新建/编辑报告」可为每个报告独立设置邮件主题、上传 HTML 模板和附件；未设置时回退全局模板/附件。邮件主题留空时使用「【报告分享】+ 报告标题」，可在报告中覆盖
+- **已有报告绑定**：编辑报告时可点「导入全局模板」「导入全局附件」，把当前全局内容复制一份到该报告；原全局文件保留，未导入的报告继续回退
+- **邮件模板**：全局兜底为 `backend/app/templates/email_report.html`（HTML 正文）+ `backend/app/templates/email_report.txt`（纯文本兜底，保留段落空行），两者正文保持一致；上传的报告模板按静态 HTML 原样发送，纯文本自动从 HTML 生成
+- **邮件附件**：报告上传附件后只发该报告的附件（`backend/data/report_uploads/<report_id>/`）；未上传时继续使用 `backend/mail_attachments/` 旧目录（可含报告子目录）
 
 
 ## 界面
@@ -121,6 +124,8 @@ C:\Users\HP\miniconda3\envs\reportc\python.exe -m alembic upgrade head
 
 SQLite 文件：`backend/data/app.db`（已 gitignore）。生产环境每日备份，使用 `sqlite3 app.db ".backup ..."`。
 
+> 代码更新涉及表结构时，开发库也要执行 `alembic upgrade head`；`main.py` 的自动建表只创建新表，不会给已有表加列。报告级邮件附件同时存放在 `backend/data/report_uploads/`，备份时请一并覆盖。
+
 ## 当前状态
 
-已完成 M1（脚手架）+ M2（认证、数据模型、迁移、核心接口、前端页面骨架），11 个后端测试通过，前端生产构建通过；前端已按客户端/管理端代码分割（客户端不加载 antd）。详见 `docs/00-准备与实施步骤.md` 第 19 节。
+已完成 M1（脚手架）+ M2（认证、数据模型、迁移、核心接口、前端页面骨架），后端 77 个测试通过，前端生产构建通过；前端已按客户端/管理端代码分割（客户端不加载 antd）。详见 `docs/00-准备与实施步骤.md` 第 19 节。

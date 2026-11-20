@@ -11,6 +11,10 @@ import logging
 from pathlib import Path
 
 from app.core.config import BACKEND_DIR, settings
+from app.services.report_uploads import (
+    collect_uploaded_attachments,
+    has_uploaded_attachments,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +25,25 @@ def attachment_dir() -> Path:
 
 
 def collect_attachments(report_id: str | None = None) -> list[tuple[str, bytes]]:
-    """返回 [(文件名, 内容)]；包含公共目录与报告专属子目录。"""
+    """返回 [(文件名, 内容)]。
 
+    报告的“管理端上传附件”优先；没有上传时回退旧逻辑：
+    全局目录 + 报告子目录（根目录同名文件遮蔽子目录）。
+    """
+
+    if report_id and has_uploaded_attachments(report_id):
+        logger.info("本次邮件使用报告上传附件 report_id=%s", report_id)
+        return collect_uploaded_attachments(report_id)
+    return _collect_legacy(report_id)
+
+
+def collect_legacy_attachments(report_id: str | None = None) -> list[tuple[str, bytes]]:
+    """旧全局目录内容（全局根目录 + 报告子目录），用于导入到报告。"""
+
+    return _collect_legacy(report_id)
+
+
+def _collect_legacy(report_id: str | None = None) -> list[tuple[str, bytes]]:
     base = attachment_dir()
     if not base.exists():
         return []

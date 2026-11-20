@@ -1,5 +1,6 @@
 """测试环境：独立临时 SQLite + 独立 config.test.yaml（不读取环境变量）。"""
 
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -36,6 +37,8 @@ TEST_CONFIG = {
         "user": "",
         "password": "",
         "from_name": "测试",
+        "attachment_dir": str(TEST_DIR / "mail_attachments"),
+        "upload_dir": str(TEST_DIR / "report_uploads"),
     },
     "admin": {"initial_username": "admin", "initial_password": "TestPassw0rd!23"},
 }
@@ -63,6 +66,8 @@ async def prepare_db():
     rate_limit.reset_memory()
     login_guard.reset_memory()
     token_store.reset_memory()
+    for name in ("upload_dir", "attachment_dir"):
+        shutil.rmtree(Path(TEST_CONFIG["mail"][name]), ignore_errors=True)
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.drop_all)
         await connection.run_sync(Base.metadata.create_all)

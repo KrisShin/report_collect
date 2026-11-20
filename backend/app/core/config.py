@@ -64,6 +64,32 @@ class MailConfig(BaseModel):
     attachment_dir: str = "mail_attachments"
     # 单个静态附件大小上限（MB），超过则跳过并记日志
     max_attachment_mb: int = 20
+    # 管理端为报告上传的附件目录（相对 BACKEND_DIR）；与 attachment_dir 完全隔离
+    upload_dir: str = "data/report_uploads"
+    # 邮件 HTML 模板大小上限（KB）
+    max_template_kb: int = 512
+    # 单次上传附件数量上限
+    max_upload_files: int = 10
+    # 单次上传附件总大小上限（MB）
+    max_total_attachment_mb: int = 25
+    # 允许上传的附件后缀（小写，含点）
+    allowed_attachment_extensions: list[str] = Field(
+        default_factory=lambda: [
+            ".pdf",
+            ".doc",
+            ".docx",
+            ".xls",
+            ".xlsx",
+            ".ppt",
+            ".pptx",
+            ".zip",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".txt",
+            ".csv",
+        ]
+    )
 
 
 class AiConfig(BaseModel):

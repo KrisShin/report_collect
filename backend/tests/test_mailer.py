@@ -135,7 +135,7 @@ async def test_deliver_report_mail_reads_attachments_once(monkeypatch):
         batch.extend(mails)
         return [None] * len(mails)
 
-    async def fake_titles(_db) -> dict[str, str]:
+    async def fake_reports(_db, _ids) -> dict:
         return {}
 
     async def fake_notify(*_args, **_kwargs) -> None:
@@ -189,7 +189,7 @@ async def test_deliver_report_mail_reads_attachments_once(monkeypatch):
     monkeypatch.setattr(tasks, "collect_attachments", fake_collect)
     monkeypatch.setattr(tasks, "send_mails", fake_send_mails)
     monkeypatch.setattr(tasks, "render_report_email", lambda **_kwargs: "<p>x</p>")
-    monkeypatch.setattr(tasks, "_report_titles", fake_titles)
+    monkeypatch.setattr(tasks, "_reports", fake_reports)
     monkeypatch.setattr(tasks, "_notify_feishu_safe", fake_notify)
     monkeypatch.setattr(tasks, "_notify_feishu_card_safe", fake_notify)
 

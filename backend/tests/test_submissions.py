@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from app.services.email_template import default_subject
 from app.services.wechat import is_wechat_browser
 
 BASE_PAYLOAD = {
@@ -206,6 +207,8 @@ async def test_send_mail_is_queued(client, admin_client):
     assert body["queued"] is True
     assert body["count"] == 1
     assert body["log_id"] > 0
+    assert len(body["log_ids"]) == 1
+    assert body["groups"][0]["subject"] == default_subject("测试报告")
 
 async def test_unique_email_and_ip_per_report(client, admin_client, monkeypatch):
     from app.core.config import settings

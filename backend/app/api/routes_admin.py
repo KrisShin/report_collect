@@ -27,6 +27,7 @@ from app.models.submission import Submission
 from app.schemas.common import PageResult
 from app.schemas.submission import ReviewRequest, SubmissionRead
 from app.services.audit import write_audit
+from app.services.email_template import default_subject
 from app.services.exporter import build_submissions_xlsx, default_attachment_name
 from app.services.jobs import enqueue
 
@@ -208,54 +209,104 @@ async def send_submissions_mail(
     db: AsyncSession = Depends(get_db),
     admin: AdminUser = Depends(get_current_admin),
 ) -> dict:
-    """提交邮件发送任务后立即返回，实际发送在后台进行，不阻塞请求。"""
+    """提交邮件发送任务后立即返回，实际发送在后台进行，不阻塞请求。
+
+    按报告分组：每个报告一条 MailLog，主题取报告的 email_subject（为空回退默认）。
+    """
 
     rows = await _load_rows(db, ids)
     titles = await _report_titles(db)
     for row in rows:
         row.report_title = titles.get(row.report_id)
 
-    # 收件人 = 勾选的提交人本人（业务决定，这里不做任何拦截）
+    reports = await _reports_by_id(
+        db, {row.report_id for row in rows if row.report_id}
+    )
+    groups: dict[str | None, list[Submission]] = {}
+    for row in rows:
+        groups.setdefault(row.report_id, []).append(row)
+
+    created: list[tuple[MailLog, str | None, list[Submission]]] = []
+    for report_id, group_rows in groups.items():
+        report = reports.get(report_id) if report_id else None
+        subject = (
+            report.email_subject
+            if report and report.email_subject
+            else default_subject(report.title if report else "")
+        )
+        log = MailLog(
+            submission_ids=json.dumps([row.id for row in group_rows]),
+            recipient=";".join(sorted({row.email for row in group_rows})),
+            subject=subject,
+            status="pending",
+            operator_id=admin.id,
+        )
+        db.add(log)
+        created.append((log, report_id, group_rows))
+
+    await db.commit()
+    for log, _report_id, _group_rows in created:
+        await db.refresh(log)
+
+    group_payload: list[dict] = []
+    for log, report_id, group_rows in created:
+        report = reports.get(report_id) if report_id else None
+        group_payload.append(
+            {
+                "log_id": log.id,
+                "report_id": report_id,
+                "report_title": report.title if report else titles.get(report_id),
+                "subject": log.subject,
+                "count": len(group_rows),
+            }
+        )
+        await enqueue(
+            background,
+            "report_mail",
+            log_id=log.id,
+            submission_ids=[row.id for row in group_rows],
+        )
+
     recipients = sorted({row.email for row in rows})
     submission_ids = [row.id for row in rows]
-
-    log = MailLog(
-        submission_ids=json.dumps(submission_ids),
-        recipient=";".join(recipients),
-        subject="【报告分享】中国电动重卡补能基础设施进展报告",
-        status="pending",
-        operator_id=admin.id,
-    )
-    db.add(log)
-    await db.commit()
-    await db.refresh(log)
-
-    await enqueue(background, "report_mail", log_id=log.id, submission_ids=submission_ids)
     await write_audit(
         db,
         admin,
         "send_mail",
         ",".join(str(item) for item in submission_ids),
-        "queued",
+        f"queued:groups={len(created)}",
         request,
     )
 
-    logger.info("邮件任务已入队 log_id=%s count=%s", log.id, len(submission_ids))
+    logger.info(
+        "邮件任务已入队 log_ids=%s count=%s",
+        [log.id for log, _report_id, _rows in created],
+        len(submission_ids),
+    )
     return {
         "ok": True,
         "queued": True,
-        "log_id": log.id,
+        "log_id": created[0][0].id if created else None,
+        "log_ids": [log.id for log, _report_id, _rows in created],
         "count": len(submission_ids),
         "recipients": recipients,
+        "groups": group_payload,
     }
 
 
-async def _report_titles(db: AsyncSession) -> dict[int, str]:
+async def _report_titles(db: AsyncSession) -> dict[str, str]:
     rows = (await db.execute(select(Report.id, Report.title))).all()
     return {report_id: title for report_id, title in rows}
 
 
-def _to_read(row: Submission, titles: dict[int, str]) -> SubmissionRead:
+async def _reports_by_id(db: AsyncSession, report_ids: set[str]) -> dict[str, Report]:
+    if not report_ids:
+        return {}
+    rows = (await db.scalars(select(Report).where(Report.id.in_(report_ids)))).all()
+    return {report.id: report for report in rows}
+
+
+def _to_read(row: Submission, titles: dict[str, str]) -> SubmissionRead:
     data = SubmissionRead.model_validate(row)
     data.report_title = titles.get(row.report_id) if row.report_id else None
     return data

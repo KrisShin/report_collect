@@ -35,6 +35,24 @@ mail:
   retry_delay_seconds: 300
   attachment_dir: mail_attachments
   max_attachment_mb: 20
+  upload_dir: data/report_uploads
+  max_template_kb: 512
+  max_upload_files: 10
+  max_total_attachment_mb: 25
+  allowed_attachment_extensions:
+  - .pdf
+  - .doc
+  - .docx
+  - .xls
+  - .xlsx
+  - .ppt
+  - .pptx
+  - .zip
+  - .png
+  - .jpg
+  - .jpeg
+  - .txt
+  - .csv
 admin:
   initial_username: admin
   initial_password: ''

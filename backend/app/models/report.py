@@ -30,7 +30,18 @@ class Report(Base):
     # 填报时间段（naive UTC 存库，可空表示不限制）
     start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # 报告级邮件设置；全部可空，为空时回退全局模板/附件/默认主题
+    email_subject: Mapped[str | None] = mapped_column(String(255))
+    email_template_html: Mapped[str | None] = mapped_column(Text)
+    email_template_name: Mapped[str | None] = mapped_column(String(255))
+    email_template_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
+
+    @property
+    def has_email_template(self) -> bool:
+        return bool(self.email_template_html)

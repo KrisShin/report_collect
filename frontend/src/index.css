@@ -573,3 +573,57 @@ body {
   color: var(--rc-muted);
 }
 
+/* 报告邮件模板/附件 */
+.mail-asset-block {
+  margin-bottom: 18px;
+}
+
+.mail-asset-label {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--rc-navy);
+}
+
+.mail-asset-actions {
+  margin-top: 10px;
+}
+
+.mail-asset-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--rc-muted);
+}
+
+.mail-asset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.mail-asset-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--rc-border);
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 13px;
+}
+
+.mail-asset-item > span:first-child {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mail-asset-size {
+  font-size: 12px;
+  color: var(--rc-muted);
+}
+
