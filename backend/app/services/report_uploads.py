@@ -8,6 +8,7 @@
 import logging
 import os
 import re
+import shutil
 import uuid
 from contextlib import suppress
 from datetime import UTC, datetime
@@ -254,3 +255,16 @@ def delete_uploaded_attachment(report_id: str, filename: str) -> bool:
         logger.exception("删除报告附件失败 report_id=%s name=%s", report_id, name)
         raise UploadError("删除附件失败，请稍后重试") from exc
     return True
+
+
+def remove_report_upload_dir(report_id: str) -> int:
+    """删除报告的全部上传附件目录，返回删除前的文件数。"""
+
+    folder = report_upload_dir(report_id)
+    count = len(list_uploaded_attachments(report_id))
+    if folder.is_dir():
+        try:
+            shutil.rmtree(folder)
+        except OSError:
+            logger.exception("删除报告附件目录失败 report_id=%s", report_id)
+    return count

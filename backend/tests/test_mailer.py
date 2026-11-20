@@ -138,6 +138,9 @@ async def test_deliver_report_mail_reads_attachments_once(monkeypatch):
     async def fake_reports(_db, _ids) -> dict:
         return {}
 
+    async def fake_mark_person_sent(*_args, **_kwargs) -> None:
+        return None
+
     async def fake_notify(*_args, **_kwargs) -> None:
         return None
 
@@ -155,6 +158,9 @@ async def test_deliver_report_mail_reads_attachments_once(monkeypatch):
             self.email = f"u{index}@example.com"
             self.report_id = "a" * 32
             self.report_title = None
+            self.person_id = None
+            self.send_mode = "manual"
+            self.needs_manual = True
             self.status = "pending"
             self.mail_sent_at = None
             self.mail_error = None
@@ -190,6 +196,7 @@ async def test_deliver_report_mail_reads_attachments_once(monkeypatch):
     monkeypatch.setattr(tasks, "send_mails", fake_send_mails)
     monkeypatch.setattr(tasks, "render_report_email", lambda **_kwargs: "<p>x</p>")
     monkeypatch.setattr(tasks, "_reports", fake_reports)
+    monkeypatch.setattr(tasks, "mark_person_sent", fake_mark_person_sent)
     monkeypatch.setattr(tasks, "_notify_feishu_safe", fake_notify)
     monkeypatch.setattr(tasks, "_notify_feishu_card_safe", fake_notify)
 

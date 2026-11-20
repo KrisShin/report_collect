@@ -28,6 +28,7 @@ from app.services.email_template import (
 from app.services.feishu import feishu_client
 from app.services.html_text import html_to_text
 from app.services.mailer import MailError, OutgoingMail, send_mails
+from app.services.persons import mark_person_sent
 
 PROGRESS_INTERVAL_SECONDS = 30
 
@@ -265,9 +266,12 @@ async def deliver_report_mail(log_id: int, submission_ids: list[int]) -> None:
                 row.is_processed = True
                 row.processed_at = now
                 row.processed_action = "mail_sent"
+                row.needs_manual = False
+                await mark_person_sent(db, row, now)
             else:
-                # 发送失败：不改变原状态（仍可再次勾选重发），只记录失败原因
+                # 发送失败：不改变原状态（仍可再次勾选重发），记录失败原因并转人工
                 row.mail_error = error
+                row.needs_manual = True
                 failed_ids.append(row.id)
 
         failed = len(rows) - success

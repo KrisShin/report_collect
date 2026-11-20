@@ -74,6 +74,9 @@ class SubmissionRead(BaseModel):
     phone_source: str
     email: EmailStr
     status: SubmissionStatus
+    send_mode: str = "manual"
+    needs_manual: bool = True
+    person_has_sent: bool = False
     is_processed: bool = False
     processed_at: datetime | None = None
     processed_action: str | None = None
@@ -94,7 +97,7 @@ class SubmissionRead(BaseModel):
 class SubmissionCreated(BaseModel):
     id: int
     status: SubmissionStatus
-    message: str = "提交成功，等待管理员审核后发送到邮箱"
+    message: str = "提交成功，我们将尽快处理并发送到您的邮箱"
 
 
 class ReviewRequest(BaseModel):

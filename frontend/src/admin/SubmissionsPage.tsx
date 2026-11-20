@@ -41,6 +41,8 @@ interface Filters {
   processed?: string
   ai_flag?: string
   status?: string
+  send_mode?: string
+  needs_manual?: string
   keyword?: string
   organization?: string
   position?: string
@@ -75,7 +77,7 @@ export default function SubmissionsPage() {
     queryKey: ['admin', 'submissions', 'stats'],
     queryFn: async () => {
       const base = { page: 1, page_size: 1 }
-      const [all, unprocessed, suspicious] = await Promise.all([
+      const [all, unprocessed, suspicious, needsManual] = await Promise.all([
         api.get<PageResult<Submission>>('/api/admin/submissions', { params: base }),
         api.get<PageResult<Submission>>('/api/admin/submissions', {
           params: { ...base, processed: false },
@@ -83,11 +85,15 @@ export default function SubmissionsPage() {
         api.get<PageResult<Submission>>('/api/admin/submissions', {
           params: { ...base, ai_flag: 'suspicious' },
         }),
+        api.get<PageResult<Submission>>('/api/admin/submissions', {
+          params: { ...base, needs_manual: true },
+        }),
       ])
       return {
         total: all.data.total,
         unprocessed: unprocessed.data.total,
         suspicious: suspicious.data.total,
+        needsManual: needsManual.data.total,
       }
     },
   })
@@ -190,6 +196,41 @@ export default function SubmissionsPage() {
         const meta = STATUS_META[status] ?? { text: status, color: 'default' }
         return <Tag color={meta.color}>{meta.text}</Tag>
       },
+    },
+    {
+      title: '发送处理',
+      key: 'send',
+      width: 150,
+      render: (_, record) => {
+        if (record.needs_manual) {
+          return (
+            <Tooltip
+              title={
+                record.send_mode === 'auto'
+                  ? '自动发送失败，请人工处理'
+                  : '需人工判断后发送'
+              }
+            >
+              <Tag color="orange">需人工</Tag>
+            </Tooltip>
+          )
+        }
+        return record.send_mode === 'auto' ? (
+          <Tag color="blue">自动</Tag>
+        ) : (
+          <Tag color="green">人工</Tag>
+        )
+      },
+    },
+    {
+      title: '本人状态',
+      dataIndex: 'person_has_sent',
+      width: 130,
+      render: (value?: boolean) => (
+        <Tooltip title="该人员在任一报告中成功发送过邮件">
+          {value ? <Tag color="green">本人已发送</Tag> : <Tag>本人未发送</Tag>}
+        </Tooltip>
+      ),
     },
     {
       title: '处理状态',
@@ -336,6 +377,28 @@ export default function SubmissionsPage() {
       />
       <Select
         allowClear
+        placeholder="发送方式"
+        style={{ width: isMobile ? '100%' : 130 }}
+        value={filters.send_mode}
+        options={[
+          { value: 'auto', label: '自动' },
+          { value: 'manual', label: '人工' },
+        ]}
+        onChange={(value?: string) => updateFilter('send_mode', value ?? '')}
+      />
+      <Select
+        allowClear
+        placeholder="需人工"
+        style={{ width: isMobile ? '100%' : 130 }}
+        value={filters.needs_manual}
+        options={[
+          { value: 'true', label: '需人工' },
+          { value: 'false', label: '无需人工' },
+        ]}
+        onChange={(value?: string) => updateFilter('needs_manual', value ?? '')}
+      />
+      <Select
+        allowClear
         placeholder="处理状态"
         style={{ width: isMobile ? '100%' : 140 }}
         value={filters.processed}
@@ -375,6 +438,10 @@ export default function SubmissionsPage() {
           <div className="stat-value">{statsQuery.data?.unprocessed ?? '-'}</div>
         </div>
         <div className="stat-card">
+          <div className="stat-label">需人工</div>
+          <div className="stat-value">{statsQuery.data?.needsManual ?? '-'}</div>
+        </div>
+        <div className="stat-card">
           <div className="stat-label">AI 可疑</div>
           <div className="stat-value">{statsQuery.data?.suspicious ?? '-'}</div>
         </div>
@@ -410,7 +477,7 @@ export default function SubmissionsPage() {
           loading={query.isLoading}
           columns={columns}
           dataSource={query.data?.items ?? []}
-          scroll={{ x: 2100 }}
+          scroll={{ x: 2350 }}
           rowSelection={{
             selectedRowKeys: selectedIds,
             onChange: (keys) => setSelectedIds(keys as number[]),

@@ -22,6 +22,7 @@ from app.api.deps import get_current_admin
 from app.db.session import get_db
 from app.models.admin_user import AdminUser
 from app.models.mail_log import MailLog
+from app.models.person import Person
 from app.models.report import Report
 from app.models.submission import Submission
 from app.schemas.common import PageResult
@@ -44,6 +45,8 @@ SORTABLE_FIELDS = {
     "phone": Submission.phone,
     "email": Submission.email,
     "status": Submission.status,
+    "send_mode": Submission.send_mode,
+    "needs_manual": Submission.needs_manual,
     "submitted_at": Submission.submitted_at,
     "mail_sent_at": Submission.mail_sent_at,
 }
@@ -61,6 +64,8 @@ def _apply_filters(
     phone: str | None = None,
     email: str | None = None,
     status_value: str | None = None,
+    send_mode: str | None = None,
+    needs_manual: bool | None = None,
     keyword: str | None = None,
 ):
     if report_id:
@@ -81,6 +86,10 @@ def _apply_filters(
         stmt = stmt.where(Submission.email.contains(email))
     if status_value:
         stmt = stmt.where(Submission.status == status_value)
+    if send_mode:
+        stmt = stmt.where(Submission.send_mode == send_mode)
+    if needs_manual is not None:
+        stmt = stmt.where(Submission.needs_manual.is_(needs_manual))
     if keyword:
         like = f"%{keyword}%"
         stmt = stmt.where(
@@ -108,6 +117,8 @@ async def list_submissions(
     phone: str | None = None,
     email: str | None = None,
     status_value: str | None = Query(None, alias="status"),
+    send_mode: str | None = Query(None, description="发送方式：auto/manual"),
+    needs_manual: bool | None = Query(None, description="是否仍需人工处理"),
     keyword: str | None = None,
     sort_by: str = "submitted_at",
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
@@ -124,6 +135,8 @@ async def list_submissions(
         "phone": phone,
         "email": email,
         "status_value": status_value,
+        "send_mode": send_mode,
+        "needs_manual": needs_manual,
         "keyword": keyword,
     }
     total = await db.scalar(_apply_filters(select(func.count()).select_from(Submission), **filters))
@@ -135,9 +148,12 @@ async def list_submissions(
     rows_stmt = rows_stmt.offset((page - 1) * page_size).limit(page_size)
     rows = list((await db.scalars(rows_stmt)).all())
     titles = await _report_titles(db)
+    person_sent = await _person_sent_map(
+        db, {row.person_id for row in rows if row.person_id}
+    )
 
     return PageResult[SubmissionRead](
-        items=[_to_read(row, titles) for row in rows],
+        items=[_to_read(row, titles, person_sent) for row in rows],
         total=total or 0,
         page=page,
         page_size=page_size,
@@ -165,7 +181,10 @@ async def review_submission(
 
     await write_audit(db, admin, "review", str(submission.id), payload.status, request)
     titles = await _report_titles(db)
-    return _to_read(submission, titles)
+    person_sent = await _person_sent_map(
+        db, {submission.person_id} if submission.person_id else set()
+    )
+    return _to_read(submission, titles, person_sent)
 
 
 @router.post("/copy-emails")
@@ -306,9 +325,29 @@ async def _reports_by_id(db: AsyncSession, report_ids: set[str]) -> dict[str, Re
     return {report.id: report for report in rows}
 
 
-def _to_read(row: Submission, titles: dict[str, str]) -> SubmissionRead:
+async def _person_sent_map(
+    db: AsyncSession, person_ids: set[int]
+) -> dict[int, bool]:
+    if not person_ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(Person.id, Person.has_sent).where(Person.id.in_(person_ids))
+        )
+    ).all()
+    return {person_id: bool(has_sent) for person_id, has_sent in rows}
+
+
+def _to_read(
+    row: Submission,
+    titles: dict[str, str],
+    person_sent: dict[int, bool] | None = None,
+) -> SubmissionRead:
     data = SubmissionRead.model_validate(row)
     data.report_title = titles.get(row.report_id) if row.report_id else None
+    data.person_has_sent = bool(
+        person_sent and row.person_id and person_sent.get(row.person_id, False)
+    )
     return data
 
 
