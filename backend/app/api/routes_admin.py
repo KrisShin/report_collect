@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import (
     APIRouter,
@@ -19,6 +19,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
+from app.core.time import to_db_utc
 from app.db.session import get_db
 from app.models.admin_user import AdminUser
 from app.models.mail_log import MailLog
@@ -58,6 +59,7 @@ def _apply_filters(
     report_id: str | None = None,
     processed: bool | None = None,
     ai_flag: str | None = None,
+    exclude_ai_flag: str | None = None,
     organization: str | None = None,
     position: str | None = None,
     name: str | None = None,
@@ -66,6 +68,8 @@ def _apply_filters(
     status_value: str | None = None,
     send_mode: str | None = None,
     needs_manual: bool | None = None,
+    unsent: bool | None = None,
+    submitted_from: datetime | None = None,
     keyword: str | None = None,
 ):
     if report_id:
@@ -74,6 +78,11 @@ def _apply_filters(
         stmt = stmt.where(Submission.is_processed.is_(processed))
     if ai_flag:
         stmt = stmt.where(Submission.ai_flag == ai_flag)
+    if exclude_ai_flag:
+        # NULL（尚未判定）也要保留，不能用 != 直接排除
+        stmt = stmt.where(
+            or_(Submission.ai_flag.is_(None), Submission.ai_flag != exclude_ai_flag)
+        )
     if organization:
         stmt = stmt.where(Submission.organization.contains(organization))
     if position:
@@ -90,6 +99,11 @@ def _apply_filters(
         stmt = stmt.where(Submission.send_mode == send_mode)
     if needs_manual is not None:
         stmt = stmt.where(Submission.needs_manual.is_(needs_manual))
+    if unsent:
+        stmt = stmt.where(Submission.mail_sent_at.is_(None))
+        stmt = stmt.where(Submission.status != "sent")
+    if submitted_from is not None:
+        stmt = stmt.where(Submission.submitted_at >= to_db_utc(submitted_from))
     if keyword:
         like = f"%{keyword}%"
         stmt = stmt.where(
@@ -111,6 +125,7 @@ async def list_submissions(
     report_id: str | None = None,
     processed: bool | None = Query(None, description="是否已处理"),
     ai_flag: str | None = Query(None, description="AI 标记：ok/suspicious/error/skipped"),
+    exclude_ai_flag: str | None = Query(None, description="排除指定 AI 标记（NULL 保留）"),
     organization: str | None = None,
     position: str | None = None,
     name: str | None = None,
@@ -119,16 +134,24 @@ async def list_submissions(
     status_value: str | None = Query(None, alias="status"),
     send_mode: str | None = Query(None, description="发送方式：auto/manual"),
     needs_manual: bool | None = Query(None, description="是否仍需人工处理"),
+    unsent: bool | None = Query(None, description="仅未发送：mail_sent_at 为空且状态非 sent"),
+    recent_hours: int | None = Query(
+        None, ge=1, le=72, description="仅最近 N 小时内填报"
+    ),
     keyword: str | None = None,
     sort_by: str = "submitted_at",
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: AsyncSession = Depends(get_db),
     _: AdminUser = Depends(get_current_admin),
 ) -> PageResult[SubmissionRead]:
+    submitted_from = (
+        datetime.now(UTC) - timedelta(hours=recent_hours) if recent_hours else None
+    )
     filters = {
         "report_id": report_id,
         "processed": processed,
         "ai_flag": ai_flag,
+        "exclude_ai_flag": exclude_ai_flag,
         "organization": organization,
         "position": position,
         "name": name,
@@ -137,6 +160,8 @@ async def list_submissions(
         "status_value": status_value,
         "send_mode": send_mode,
         "needs_manual": needs_manual,
+        "unsent": unsent,
+        "submitted_from": submitted_from,
         "keyword": keyword,
     }
     total = await db.scalar(_apply_filters(select(func.count()).select_from(Submission), **filters))
@@ -234,13 +259,30 @@ async def send_submissions_mail(
     """
 
     rows = await _load_rows(db, ids)
+    return await _queue_report_mails(
+        db=db,
+        background=background,
+        rows=rows,
+        admin=admin,
+        request=request,
+    )
+
+
+async def _queue_report_mails(
+    *,
+    db: AsyncSession,
+    background: BackgroundTasks,
+    rows: list[Submission],
+    admin: AdminUser,
+    request: Request,
+) -> dict:
+    """按报告分组建 MailLog 并入队发送。"""
+
     titles = await _report_titles(db)
     for row in rows:
         row.report_title = titles.get(row.report_id)
 
-    reports = await _reports_by_id(
-        db, {row.report_id for row in rows if row.report_id}
-    )
+    reports = await _reports_by_id(db, {row.report_id for row in rows if row.report_id})
     groups: dict[str | None, list[Submission]] = {}
     for row in rows:
         groups.setdefault(row.report_id, []).append(row)
@@ -286,7 +328,6 @@ async def send_submissions_mail(
             submission_ids=[row.id for row in group_rows],
         )
 
-    recipients = sorted({row.email for row in rows})
     submission_ids = [row.id for row in rows]
     await write_audit(
         db,
@@ -296,7 +337,6 @@ async def send_submissions_mail(
         f"queued:groups={len(created)}",
         request,
     )
-
     logger.info(
         "邮件任务已入队 log_ids=%s count=%s",
         [log.id for log, _report_id, _rows in created],
@@ -308,7 +348,8 @@ async def send_submissions_mail(
         "log_id": created[0][0].id if created else None,
         "log_ids": [log.id for log, _report_id, _rows in created],
         "count": len(submission_ids),
-        "recipients": recipients,
+        "ids": submission_ids,
+        "recipients": sorted({row.email for row in rows}),
         "groups": group_payload,
     }
 

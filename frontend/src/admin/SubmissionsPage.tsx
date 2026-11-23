@@ -4,6 +4,7 @@ import {
   Card,
   Drawer,
   Input,
+  Modal,
   Popconfirm,
   Select,
   Space,
@@ -61,6 +62,8 @@ export default function SubmissionsPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [filterOpen, setFilterOpen] = useState(false)
+  const [recentIds, setRecentIds] = useState<number[] | null>(null)
+  const [recentLoading, setRecentLoading] = useState(false)
 
   const params = useMemo(
     () => ({ page, page_size: pageSize, sort_by: sortBy, sort_order: sortOrder, ...filters }),
@@ -134,10 +137,9 @@ export default function SubmissionsPage() {
     }
   }
 
-  const doSendMail = async () => {
-    if (!selectedIds.length) return message.warning('请先选择记录')
+  const doSendMailByIds = async (ids: number[]) => {
     try {
-      const response = await api.post('/api/admin/submissions/send-mail', { ids: selectedIds })
+      const response = await api.post('/api/admin/submissions/send-mail', { ids })
       message.success(
         `已提交发送任务（${response.data.count} 条），发送完成后会自动标记为已处理`,
       )
@@ -147,6 +149,55 @@ export default function SubmissionsPage() {
     } catch (error) {
       message.error(errorMessage(error))
     }
+  }
+
+  const doSendMail = async () => {
+    if (!selectedIds.length) return message.warning('请先选择记录')
+    await doSendMailByIds(selectedIds)
+  }
+
+  /** 先按条件拉取并勾选，再弹出二次确认；AI 可疑记录不勾选。 */
+  const selectRecentUnsent = async () => {
+    setRecentLoading(true)
+    try {
+      const ids: number[] = []
+      let currentPage = 1
+      while (true) {
+        const response = await api.get<PageResult<Submission>>('/api/admin/submissions', {
+          params: {
+            page: currentPage,
+            page_size: 100,
+            recent_hours: 3,
+            needs_manual: true,
+            unsent: true,
+            exclude_ai_flag: 'suspicious',
+            sort_by: 'submitted_at',
+            sort_order: 'asc',
+          },
+        })
+        ids.push(...response.data.items.map((item) => item.id))
+        if (ids.length >= response.data.total || response.data.items.length === 0) break
+        currentPage += 1
+      }
+
+      if (!ids.length) {
+        message.info('最近 3 小时内没有可发送的待处理记录（AI 可疑记录已排除）')
+        return
+      }
+      setSelectedIds(ids)
+      setRecentIds(ids)
+    } catch (error) {
+      message.error(errorMessage(error))
+    } finally {
+      setRecentLoading(false)
+    }
+  }
+
+  const confirmSendRecent = async () => {
+    const ids = recentIds ?? []
+    setRecentIds(null)
+    if (!ids.length) return
+    await doSendMailByIds(ids)
   }
 
   const doCopyEmails = async () => {
@@ -203,14 +254,14 @@ export default function SubmissionsPage() {
       width: 150,
       render: (_, record) => {
         if (record.needs_manual) {
+          const reason =
+            record.send_mode !== 'auto'
+              ? '需人工判断后发送'
+              : record.ai_flag === 'suspicious'
+                ? 'AI 识别可疑，已拦截自动发送'
+                : '自动发送失败，请人工处理'
           return (
-            <Tooltip
-              title={
-                record.send_mode === 'auto'
-                  ? '自动发送失败，请人工处理'
-                  : '需人工判断后发送'
-              }
-            >
+            <Tooltip title={reason}>
               <Tag color="orange">需人工</Tag>
             </Tooltip>
           )
@@ -468,6 +519,9 @@ export default function SubmissionsPage() {
           <Button type="primary" onClick={doSendMail}>
             一键发送邮件
           </Button>
+          <Button loading={recentLoading} onClick={selectRecentUnsent}>
+            发送最近3小时
+          </Button>
           <Button onClick={doCopyEmails}>复制邮箱</Button>
         </div>
 
@@ -504,6 +558,21 @@ export default function SubmissionsPage() {
           {filterControls}
         </Space>
       </Drawer>
+
+      <Modal
+        title="确认发送最近 3 小时记录"
+        open={recentIds !== null}
+        onOk={confirmSendRecent}
+        onCancel={() => setRecentIds(null)}
+        okText="确认发送"
+        cancelText="取消"
+      >
+        <p>
+          已在表格中勾选 <strong>{recentIds?.length ?? 0}</strong> 条最近 3
+          小时内填报、仍需人工且未发送的记录。
+        </p>
+        <p>AI 判定可疑的记录未自动勾选；如需发送，请取消后手动勾选。</p>
+      </Modal>
     </>
   )
 }

@@ -29,3 +29,18 @@ def test_feishu_notification_uses_shanghai_time():
     text = build_submission_notification(submission, "测试报告")
 
     assert "提交时间：2026-11-09 10:50" in text
+
+
+def test_feishu_notification_appends_status_line():
+    submission = SimpleNamespace(
+        name="张三",
+        organization="测试单位",
+        position="研究员",
+        phone="13800138000",
+        email="zhangsan@example.com",
+        submitted_at=datetime(2026, 11, 9, 2, 50),
+    )
+
+    text = build_submission_notification(submission, "测试报告", "需手动发送邮件")
+
+    assert text.splitlines()[-1] == "状态：需手动发送邮件"
