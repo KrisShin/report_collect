@@ -31,6 +31,14 @@ class Submission(Base):
     report_id: Mapped[str | None] = mapped_column(
         String(32), ForeignKey("reports.id"), index=True, nullable=True
     )
+    # 跨报告去重后的人员；历史数据由迁移回填
+    person_id: Mapped[int | None] = mapped_column(
+        ForeignKey("persons.id"), index=True, nullable=True
+    )
+    # 提交时的发送决策：auto=匹配到其他报告已发送人员，manual=需人工
+    send_mode: Mapped[str] = mapped_column(String(16), default="manual")
+    # 当前是否仍需人工处理；自动失败会置回 True
+    needs_manual: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
 
     organization: Mapped[str] = mapped_column(String(512))
     position: Mapped[str] = mapped_column(String(512))

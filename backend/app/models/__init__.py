@@ -3,7 +3,8 @@
 from app.models.admin_user import AdminUser
 from app.models.audit_log import AuditLog
 from app.models.mail_log import MailLog
+from app.models.person import Person
 from app.models.report import Report
 from app.models.submission import Submission
 
-__all__ = ["AdminUser", "AuditLog", "MailLog", "Report", "Submission"]
+__all__ = ["AdminUser", "AuditLog", "MailLog", "Person", "Report", "Submission"]

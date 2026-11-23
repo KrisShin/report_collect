@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  Alert,
   Button,
   Card,
   DatePicker,
@@ -85,6 +86,9 @@ export default function ReportsPage() {
   const [saving, setSaving] = useState(false)
   const [templateFile, setTemplateFile] = useState<File | null>(null)
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([])
+  const [deleteTarget, setDeleteTarget] = useState<ReportAdmin | null>(null)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const query = useQuery<ReportAdmin[]>({
     queryKey: ['admin', 'reports'],
@@ -335,6 +339,51 @@ export default function ReportsPage() {
     }
   }
 
+  const openDelete = (report: ReportAdmin) => {
+    if (report.submission_count > 0) {
+      message.warning(
+        `该报告已有 ${report.submission_count} 条提交记录，无法删除；请先停用或清理提交记录`,
+      )
+      return
+    }
+    setDeleteTarget(report)
+    setDeletePassword('')
+  }
+
+  const closeDelete = () => {
+    setDeleteTarget(null)
+    setDeletePassword('')
+    setDeleting(false)
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget || deleting) return
+    if (!deletePassword.trim()) {
+      message.warning('请输入管理员密码')
+      return
+    }
+    setDeleting(true)
+    try {
+      const response = await api.delete<{ deleted_attachments: number }>(
+        `/api/admin/reports/${deleteTarget.id}`,
+        { data: { password: deletePassword } },
+      )
+      message.success(
+        response.data.deleted_attachments
+          ? `报告已删除，清理 ${response.data.deleted_attachments} 个附件`
+          : '报告已删除',
+      )
+      const deletedId = deleteTarget.id
+      closeDelete()
+      await invalidate()
+      invalidateAttachments(deletedId)
+    } catch (error) {
+      message.error(errorMessage(error))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const columns: ColumnsType<ReportAdmin> = [
     {
       title: '报告 ID',
@@ -403,7 +452,7 @@ export default function ReportsPage() {
       title: '操作',
       key: 'actions',
       fixed: 'right',
-      width: isMobile ? 130 : 260,
+      width: isMobile ? 130 : 300,
       render: (_, record) => (
         <Space size={4} direction={isMobile ? 'vertical' : 'horizontal'}>
           <Button type="link" size="small" onClick={() => openEdit(record)}>
@@ -415,6 +464,25 @@ export default function ReportsPage() {
           <Button type="link" size="small" onClick={() => copyLink(record)}>
             复制链接
           </Button>
+          <Tooltip
+            title={
+              record.submission_count > 0
+                ? '该报告已有提交记录，无法删除；请先停用'
+                : '删除报告'
+            }
+          >
+            <span>
+              <Button
+                type="link"
+                size="small"
+                danger
+                disabled={record.submission_count > 0}
+                onClick={() => openDelete(record)}
+              >
+                删除
+              </Button>
+            </span>
+          </Tooltip>
         </Space>
       ),
     },
@@ -449,7 +517,7 @@ export default function ReportsPage() {
         loading={query.isLoading}
         columns={columns}
         dataSource={query.data ?? []}
-        scroll={{ x: 1850 }}
+        scroll={{ x: 1950 }}
         pagination={false}
       />
 
@@ -633,6 +701,47 @@ export default function ReportsPage() {
             </div>
           </div>
         </Form>
+      </Modal>
+
+      <Modal
+        title="删除报告"
+        open={Boolean(deleteTarget)}
+        onOk={handleDelete}
+        confirmLoading={deleting}
+        onCancel={closeDelete}
+        okText="确认删除"
+        okButtonProps={{ danger: true }}
+        width={isMobile ? '95%' : 520}
+      >
+        {deleteTarget && (
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Alert
+              type="warning"
+              showIcon
+              message="删除后不可恢复"
+              description={
+                <>
+                  将删除报告《{deleteTarget.title}》及其上传附件
+                  {deleteTarget.attachment_count
+                    ? `（${deleteTarget.attachment_count} 个）`
+                    : ''}
+                  。该报告当前没有提交记录，符合删除条件。
+                </>
+              }
+            />
+            <div>
+              <Typography.Text strong>请输入当前管理员密码确认</Typography.Text>
+              <Input.Password
+                value={deletePassword}
+                onChange={(event) => setDeletePassword(event.target.value)}
+                placeholder="管理员密码"
+                autoComplete="current-password"
+                onPressEnter={handleDelete}
+                style={{ marginTop: 8 }}
+              />
+            </div>
+          </Space>
+        )}
       </Modal>
     </Card>
   )

@@ -5,16 +5,24 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_admin
 from app.core.config import settings
+from app.core.security import verify_password
 from app.core.time import to_api_utc, to_db_utc
 from app.db.session import get_db
 from app.models.admin_user import AdminUser
 from app.models.report import Report
 from app.models.submission import Submission
-from app.schemas.report import ReportAdminRead, ReportCreate, ReportRead, ReportUpdate
+from app.schemas.report import (
+    ReportAdminRead,
+    ReportCreate,
+    ReportDeleteRequest,
+    ReportRead,
+    ReportUpdate,
+)
 from app.services.attachments import collect_legacy_attachments
 from app.services.audit import write_audit
 from app.services.email_template import HTML_TEMPLATE_NAME, load_global_template_html
@@ -24,6 +32,7 @@ from app.services.report_uploads import (
     delete_uploaded_attachment,
     has_uploaded_attachments,
     list_uploaded_attachments,
+    remove_report_upload_dir,
     sanitize_filename,
     save_attachment_payloads,
     save_uploaded_attachments,
@@ -389,3 +398,53 @@ async def import_global_report_attachments(
         request,
     )
     return {"ok": True, "imported": imported, "items": items, "total": len(items)}
+
+
+@router.delete("/{report_id}")
+async def delete_report(
+    report_id: str,
+    payload: ReportDeleteRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    admin: AdminUser = Depends(get_current_admin),
+) -> dict:
+    """删除报告；有提交记录时禁止删除，密码作为二次确认。"""
+
+    report = await _get_report_or_404(db, report_id)
+    if not verify_password(payload.password, admin.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="管理员密码错误"
+        )
+
+    count = await db.scalar(
+        select(func.count())
+        .select_from(Submission)
+        .where(Submission.report_id == report_id)
+    )
+    if count:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"该报告已有 {count} 条提交记录，无法删除；请先停用或清理提交记录",
+        )
+
+    title = report.title
+    await db.delete(report)
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="该报告已有提交记录，无法删除",
+        ) from exc
+
+    deleted_attachments = remove_report_upload_dir(report_id)
+    await write_audit(
+        db,
+        admin,
+        "report_delete",
+        report_id,
+        f"{title}; attachments={deleted_attachments}",
+        request,
+    )
+    return {"ok": True, "deleted_attachments": deleted_attachments}

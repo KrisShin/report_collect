@@ -120,6 +120,10 @@ class ReportAdminRead(ReportRead):
     attachment_count: int = 0
 
 
+class ReportDeleteRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=128)
+
+
 class ReportPublic(BaseModel):
     """客户端可见的报告信息。"""
 

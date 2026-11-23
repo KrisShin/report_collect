@@ -39,6 +39,9 @@ export interface Submission {
   phone_source: string
   email: string
   status: SubmissionStatus
+  send_mode?: 'auto' | 'manual'
+  needs_manual?: boolean
+  person_has_sent?: boolean
   is_processed: boolean
   processed_at?: string | null
   processed_action?: string | null

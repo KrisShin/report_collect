@@ -4,6 +4,7 @@
 """
 
 import contextlib
+import json
 import logging
 from typing import Any
 
@@ -18,11 +19,14 @@ from app.core import redis as redis_module
 from app.core.config import settings
 from app.core.diagnostics import log_client_event
 from app.db.session import get_db
+from app.models.mail_log import MailLog
 from app.models.report import Report
 from app.models.submission import Submission
 from app.schemas.report import ReportPublic
 from app.schemas.submission import SubmissionCreate, SubmissionCreated
+from app.services.email_template import default_subject
 from app.services.jobs import enqueue
+from app.services.persons import get_or_create_person, has_sent_in_other_report
 from app.services.rate_limit import hit
 from app.services.report_window import window_message, window_state
 
@@ -181,8 +185,21 @@ async def create_submission(
         if conflict:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=conflict)
 
+        person = await get_or_create_person(
+            db,
+            organization=payload.organization,
+            position=payload.position,
+            name=payload.name,
+            phone=payload.phone,
+            email=str(payload.email),
+        )
+        auto_send = await has_sent_in_other_report(db, person.id, report.id)
+
         submission = Submission(
             report_id=report.id,
+            person_id=person.id,
+            send_mode="auto" if auto_send else "manual",
+            needs_manual=not auto_send,
             organization=payload.organization,
             position=payload.position,
             name=payload.name,
@@ -195,7 +212,19 @@ async def create_submission(
             user_agent=request.headers.get("user-agent"),
         )
         db.add(submission)
+        mail_log: MailLog | None = None
         try:
+            await db.flush()
+            if auto_send:
+                mail_log = MailLog(
+                    submission_ids=json.dumps([submission.id]),
+                    failed_submission_ids="[]",
+                    recipient=submission.email,
+                    subject=report.email_subject or default_subject(report.title),
+                    status="pending",
+                    operator_id=None,
+                )
+                db.add(mail_log)
             await db.commit()
         except IntegrityError as exc:
             await db.rollback()
@@ -204,6 +233,8 @@ async def create_submission(
                 detail="该手机号或邮箱已提交过本报告，请勿重复提交",
             ) from exc
         await db.refresh(submission)
+        if mail_log is not None:
+            await db.refresh(mail_log)
     finally:
         if locked and redis_client is not None:
             with contextlib.suppress(Exception):
@@ -217,11 +248,27 @@ async def create_submission(
             "name": submission.name,
             "phone": submission.phone,
             "email": submission.email,
+            "send_mode": submission.send_mode,
+            "needs_manual": submission.needs_manual,
             "ua": request.headers.get("user-agent"),
             "referer": request.headers.get("referer"),
             "ip": ip,
         },
     )
+
+    # 命中“其他报告已发送过”时直接投递本报告邮件；失败则回退人工处理
+    if mail_log is not None:
+        try:
+            await enqueue(
+                background,
+                "report_mail",
+                log_id=mail_log.id,
+                submission_ids=[submission.id],
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("自动发送任务入队失败 submission_id=%s", submission.id)
+            submission.needs_manual = True
+            await db.commit()
 
     # AI 判定 + 飞书提醒：Redis 可用时由独立 worker 消费，否则进程内后台任务
     await enqueue(background, "submission_process", submission_id=submission.id)

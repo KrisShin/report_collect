@@ -16,7 +16,7 @@ export default function SuccessPage() {
         <div className="success-title">提交成功</div>
         <div className="success-divider" />
         <div className="success-text">
-          您的信息已提交，等待管理员审核后发送到您的邮箱。
+          您的信息已提交，我们将尽快处理并发送到您的邮箱。
           <br />
           请留意查收邮件。
         </div>
