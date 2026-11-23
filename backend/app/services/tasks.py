@@ -45,7 +45,7 @@ async def _reports(db, report_ids: set[str]) -> dict[str, Report]:  # noqa: ANN0
 
 
 async def process_submission(submission_id: int) -> None:
-    """AI 质量判定 + 飞书提醒（使用独立数据库会话）。"""
+    """AI 质量判定 → 自动发送决策 → 飞书提醒（使用独立数据库会话）。"""
 
     async with AsyncSessionLocal() as db:
         submission = await db.get(Submission, submission_id)
@@ -63,29 +63,99 @@ async def process_submission(submission_id: int) -> None:
         submission.ai_flag = result["flag"]
         submission.ai_score = result["score"]
         submission.ai_reason = result["reason"]
-        await db.commit()
 
         report = await db.get(Report, submission.report_id) if submission.report_id else None
-        await _notify_feishu(db, submission, report.title if report else "未知报告")
+        status_text, mail_log_id = await _decide_send(db, submission, report)
+        await db.commit()
+
+        if mail_log_id is not None:
+            # jobs 依赖 tasks.HANDLERS，顶层导入会循环依赖
+            from app.services.jobs import enqueue_detached
+
+            try:
+                await enqueue_detached(
+                    "report_mail",
+                    log_id=mail_log_id,
+                    submission_ids=[submission.id],
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("自动发送任务投递失败 submission_id=%s", submission.id)
+                log = await db.get(MailLog, mail_log_id)
+                if log is not None:
+                    log.status = "failed"
+                    log.error = "自动发送任务投递失败"
+                submission.needs_manual = True
+                await db.commit()
+                status_text = "需手动发送邮件"
+
+        await _notify_feishu(
+            db,
+            submission,
+            report.title if report else "未知报告",
+            status_text,
+        )
 
 
-def build_submission_notification(submission: Submission, report_title: str) -> str:
-    return "\n".join(
-        [
-            f"【新的报告提交】{report_title}",
-            f"姓名：{submission.name}",
-            f"单位：{submission.organization}",
-            f"职务：{submission.position}",
-            f"电话：{submission.phone}",
-            f"邮箱：{submission.email}",
-            f"提交时间：{format_local(submission.submitted_at)}",
-            f"管理端：{settings.admin_url}",
-        ]
+async def _decide_send(
+    db, submission: Submission, report: Report | None
+) -> tuple[str, int | None]:
+    """按发送方式与 AI 判定决定是否自动发信。
+
+    返回（飞书状态文案, 待投递的 MailLog id）；需人工时不创建发送日志。
+    """
+
+    if submission.send_mode != "auto":
+        submission.needs_manual = True
+        return "需手动发送邮件", None
+
+    if submission.ai_flag == "suspicious":
+        submission.needs_manual = True
+        logger.info("AI 判定可疑，已拦截自动发送 submission_id=%s", submission.id)
+        return "AI识别可疑，已拦截自动发送", None
+
+    log = MailLog(
+        submission_ids=json.dumps([submission.id]),
+        failed_submission_ids="[]",
+        recipient=submission.email,
+        subject=(
+            report.email_subject
+            if report and report.email_subject
+            else default_subject(report.title if report else "")
+        ),
+        status="pending",
+        operator_id=None,
     )
+    db.add(log)
+    await db.flush()
+    submission.needs_manual = False
+    return "已自动发送", log.id
 
 
-async def _notify_feishu(db, submission: Submission, report_title: str) -> None:  # noqa: ANN001
-    text = build_submission_notification(submission, report_title)
+def build_submission_notification(
+    submission: Submission, report_title: str, status_text: str | None = None
+) -> str:
+    lines = [
+        f"【新的报告提交】{report_title}",
+        f"姓名：{submission.name}",
+        f"单位：{submission.organization}",
+        f"职务：{submission.position}",
+        f"电话：{submission.phone}",
+        f"邮箱：{submission.email}",
+        f"提交时间：{format_local(submission.submitted_at)}",
+        f"管理端：{settings.admin_url}",
+    ]
+    if status_text:
+        lines.append(f"状态：{status_text}")
+    return "\n".join(lines)
+
+
+async def _notify_feishu(
+    db,
+    submission: Submission,
+    report_title: str,
+    status_text: str | None = None,
+) -> None:  # noqa: ANN001
+    text = build_submission_notification(submission, report_title, status_text)
     try:
         await feishu_client.send_text(text)
         submission.feishu_status = "sent"
