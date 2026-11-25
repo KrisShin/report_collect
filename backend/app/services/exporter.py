@@ -54,8 +54,17 @@ def build_submissions_xlsx(submissions: list, sheet_title: str = "报告信息")
     return buffer.getvalue()
 
 
-def default_attachment_name(now: datetime | None = None) -> str:
+def _name_timestamp(now: datetime | None = None) -> str:
     tz = ZoneInfo(settings.app.timezone)
     moment = to_local(now) if now else datetime.now(tz)
     moment = moment or datetime.now(tz)
-    return f"报告收集_{moment.strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return moment.strftime("%Y%m%d_%H%M%S")
+
+
+def default_attachment_name(now: datetime | None = None) -> str:
+    return f"报告收集_{_name_timestamp(now)}.xlsx"
+
+
+def default_attachment_name_ascii(now: datetime | None = None) -> str:
+    """Content-Disposition 的 ASCII 回退名：HTTP 头只能 latin-1，中文名走 RFC 5987。"""
+    return f"report_{_name_timestamp(now)}.xlsx"

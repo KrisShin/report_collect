@@ -3,6 +3,7 @@
 import json
 import logging
 from datetime import UTC, datetime, timedelta
+from urllib.parse import quote
 
 from fastapi import (
     APIRouter,
@@ -30,7 +31,11 @@ from app.schemas.common import PageResult
 from app.schemas.submission import ReviewRequest, SubmissionRead
 from app.services.audit import write_audit
 from app.services.email_template import default_subject
-from app.services.exporter import build_submissions_xlsx, default_attachment_name
+from app.services.exporter import (
+    build_submissions_xlsx,
+    default_attachment_name,
+    default_attachment_name_ascii,
+)
 from app.services.jobs import enqueue
 
 logger = logging.getLogger(__name__)
@@ -227,21 +232,32 @@ async def copy_emails(
 
 @router.post("/export")
 async def export_submissions(
-    ids: list[int] = Body(..., embed=True),
+    ids: list[int] | None = Body(None, embed=True),
+    report_id: str | None = Body(None, embed=True),
     db: AsyncSession = Depends(get_db),
     admin: AdminUser = Depends(get_current_admin),
 ) -> Response:
-    rows = await _load_rows(db, ids)
+    """导出选中记录；传 report_id 时导出该报告下的全部填报。"""
+    if report_id:
+        rows = await _report_submission_rows(db, report_id)
+    else:
+        rows = await _load_rows(db, ids or [])
     titles = await _report_titles(db)
     for row in rows:
         row.report_title = titles.get(row.report_id)
 
     content = build_submissions_xlsx(rows)
-    filename = default_attachment_name()
+    now = datetime.now(UTC)
+    filename = default_attachment_name(now)
+    # HTTP 头只能 latin-1：中文名按 RFC 5987 编码，另给 ASCII 回退名供旧客户端使用
+    disposition = (
+        f'attachment; filename="{default_attachment_name_ascii(now)}"; '
+        f"filename*=UTF-8''{quote(filename, safe='')}"
+    )
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": disposition},
     )
 
 
@@ -400,4 +416,22 @@ async def _load_rows(db: AsyncSession, ids: list[int]) -> list[Submission]:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="记录不存在")
     if len(rows) != len(set(ids)):
         logger.warning("部分记录不存在 requested=%s found=%s", len(ids), len(rows))
+    return rows
+
+
+async def _report_submission_rows(db: AsyncSession, report_id: str) -> list[Submission]:
+    """按报告取全部填报，按提交时间升序，保证导出顺序稳定。"""
+    if not await db.get(Report, report_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="报告不存在")
+    rows = list(
+        (
+            await db.scalars(
+                select(Submission)
+                .where(Submission.report_id == report_id)
+                .order_by(Submission.submitted_at.asc(), Submission.id.asc())
+            )
+        ).all()
+    )
+    if not rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该报告暂无填报记录")
     return rows

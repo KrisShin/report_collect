@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   Drawer,
+  Dropdown,
   Input,
   Modal,
   Popconfirm,
@@ -128,6 +129,27 @@ export default function SubmissionsPage() {
       const link = document.createElement('a')
       link.href = url
       link.download = `报告收集_${formatShanghai(new Date(), 'YYYYMMDD_HHmmss')}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      message.error(errorMessage(error))
+    }
+  }
+
+  const doExportReport = async (report: ReportAdmin) => {
+    try {
+      const response = await api.post(
+        '/api/admin/submissions/export',
+        { report_id: report.id },
+        { responseType: 'blob' },
+      )
+      const url = URL.createObjectURL(response.data)
+      const link = document.createElement('a')
+      const safeTitle = report.title.replace(/[\\/:*?"<>|]/g, '_')
+      link.href = url
+      link.download = `${safeTitle}_填报_${formatShanghai(new Date(), 'YYYYMMDD_HHmmss')}.xlsx`
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -516,6 +538,23 @@ export default function SubmissionsPage() {
         <div className="admin-toolbar">
           {isMobile && <Button onClick={() => setFilterOpen(true)}>筛选</Button>}
           <Button onClick={doExport}>一键导出</Button>
+          <Dropdown
+            trigger={['click']}
+            menu={{
+              items: (reportsQuery.data ?? []).map((report) => ({
+                key: report.id,
+                label: `${report.title}（${report.submission_count} 条）`,
+                disabled: report.submission_count === 0,
+              })),
+              onClick: ({ key }) => {
+                const report = reportsQuery.data?.find((item) => item.id === key)
+                if (report) void doExportReport(report)
+              },
+              style: { maxHeight: 360, overflowY: 'auto' },
+            }}
+          >
+            <Button>按报告导出</Button>
+          </Dropdown>
           <Button type="primary" onClick={doSendMail}>
             一键发送邮件
           </Button>

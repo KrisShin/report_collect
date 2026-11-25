@@ -1,4 +1,8 @@
 from datetime import datetime
+from io import BytesIO
+from urllib.parse import unquote
+
+from openpyxl import load_workbook
 
 from app.services.email_template import default_subject
 from app.services.wechat import is_wechat_browser
@@ -142,6 +146,76 @@ async def test_copy_emails(client, admin_client):
     response = await client.post("/api/admin/submissions/copy-emails", json={"ids": ids})
     assert response.status_code == 200
     assert response.json()["emails"] == "zhangsan@example.com"
+
+
+async def test_export_submissions_with_chinese_filename(client, admin_client):
+    """中文附件名必须走 RFC 5987，HTTP 头不能直接放 latin-1 以外的字符。"""
+    report_id = await create_report(admin_client)
+    created = await client.post(
+        "/api/client/submissions", json={**BASE_PAYLOAD, "report_id": report_id}
+    )
+    assert created.status_code == 201
+
+    response = await admin_client.post(
+        "/api/admin/submissions/export", json={"ids": [created.json()["id"]]}
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    disposition = response.headers["content-disposition"]
+    assert disposition.startswith('attachment; filename="report_')
+    assert "filename*=UTF-8''" in disposition
+    assert "报告收集_" in unquote(disposition)
+
+
+async def test_export_by_report_includes_all_submissions(client, admin_client):
+    report_a = await create_report(admin_client, "报告 A")
+    report_b = await create_report(admin_client, "报告 B")
+    payload_a1 = {**BASE_PAYLOAD, "report_id": report_a}
+    payload_a2 = {
+        **BASE_PAYLOAD,
+        "report_id": report_a,
+        "name": "李四",
+        "phone": "13900139000",
+        "email": "lisi@example.com",
+    }
+    payload_b = {
+        **BASE_PAYLOAD,
+        "report_id": report_b,
+        "name": "王五",
+        "phone": "13700137000",
+        "email": "wangwu@example.com",
+    }
+    for payload in (payload_a1, payload_a2, payload_b):
+        created = await client.post("/api/client/submissions", json=payload)
+        assert created.status_code == 201
+
+    response = await admin_client.post(
+        "/api/admin/submissions/export", json={"report_id": report_a}
+    )
+    assert response.status_code == 200
+
+    sheet = load_workbook(BytesIO(response.content)).active
+    rows = list(sheet.iter_rows(min_row=2, values_only=True))
+    # 只包含报告 A 的全部两条，且按提交时间升序
+    assert [row[4] for row in rows] == ["张三", "李四"]
+    assert {row[1] for row in rows} == {"报告 A"}
+
+
+async def test_export_by_report_rejects_empty_or_missing_report(admin_client):
+    empty_report = await create_report(admin_client, "空报告")
+    empty = await admin_client.post(
+        "/api/admin/submissions/export", json={"report_id": empty_report}
+    )
+    assert empty.status_code == 404
+    assert empty.json()["detail"] == "该报告暂无填报记录"
+
+    missing = await admin_client.post(
+        "/api/admin/submissions/export", json={"report_id": "0" * 32}
+    )
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == "报告不存在"
 
 async def test_processed_and_ai_filters(client, admin_client):
     from app.db.session import AsyncSessionLocal
