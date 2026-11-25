@@ -89,6 +89,7 @@ export default function ReportsPage() {
   const [deleteTarget, setDeleteTarget] = useState<ReportAdmin | null>(null)
   const [deletePassword, setDeletePassword] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [exportingId, setExportingId] = useState<string | null>(null)
 
   const query = useQuery<ReportAdmin[]>({
     queryKey: ['admin', 'reports'],
@@ -240,6 +241,34 @@ export default function ReportsPage() {
       }
     } finally {
       setSaving(false)
+    }
+  }
+
+  const exportSubmissions = async (report: ReportAdmin) => {
+    if (!report.submission_count) {
+      message.warning('该报告暂无填报记录')
+      return
+    }
+    setExportingId(report.id)
+    try {
+      const response = await api.post(
+        '/api/admin/submissions/export',
+        { report_id: report.id },
+        { responseType: 'blob' },
+      )
+      const url = URL.createObjectURL(response.data)
+      const link = document.createElement('a')
+      const safeTitle = report.title.replace(/[\\/:*?"<>|]/g, '_')
+      link.href = url
+      link.download = `${safeTitle}_填报_${formatShanghai(new Date(), 'YYYYMMDD_HHmmss')}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      message.error(errorMessage(error))
+    } finally {
+      setExportingId(null)
     }
   }
 
@@ -452,7 +481,7 @@ export default function ReportsPage() {
       title: '操作',
       key: 'actions',
       fixed: 'right',
-      width: isMobile ? 130 : 300,
+      width: isMobile ? 150 : 360,
       render: (_, record) => (
         <Space size={4} direction={isMobile ? 'vertical' : 'horizontal'}>
           <Button type="link" size="small" onClick={() => openEdit(record)}>
@@ -464,6 +493,25 @@ export default function ReportsPage() {
           <Button type="link" size="small" onClick={() => copyLink(record)}>
             复制链接
           </Button>
+          <Tooltip
+            title={
+              record.submission_count > 0
+                ? '导出该报告下全部填报'
+                : '该报告暂无填报记录'
+            }
+          >
+            <span>
+              <Button
+                type="link"
+                size="small"
+                disabled={record.submission_count === 0}
+                loading={exportingId === record.id}
+                onClick={() => exportSubmissions(record)}
+              >
+                导出填报
+              </Button>
+            </span>
+          </Tooltip>
           <Tooltip
             title={
               record.submission_count > 0
